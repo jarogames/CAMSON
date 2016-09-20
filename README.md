@@ -20,11 +20,11 @@
 
   The easiest is to have at /var/www/cam0  or ./www
 
-  Newly, at least somewhere
+  Newly, at least somewhere in /var/www. ```Find ``` will search for cam0 dir
  
 ## HOME files
  
- - HOME/.camson.pass  ... just a password
+ - HOME/.camson.pass  ... one word  password for the local cameras. User is the same of $USER
  
  - HOME/.camson ... list of cameras, where the order determines the screen mjpg(i) position. Good for creating multi-images
   it is created if not found.

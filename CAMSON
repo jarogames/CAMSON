@@ -13,6 +13,7 @@
 #
 #
 #
+ojr=$USER
 PASSWD=`cat $HOME/.camson.pass`
 #echo passdw = /$PASSWD/
 PROBLEM=0
@@ -168,11 +169,11 @@ function PrepCmd
 echo . device $dev i=$i...command type = $TYPE 1>&2
 
     if [ "$TYPE" = "sys" ];then
-COMMAND="export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH;mjpg_streamer -i \"input_uvc.so -d $dev $YUV \" -o \"output_http.so -w ${VARWWWCAM0}  -p 808$i -c ojr:$PASSWD\" "
+COMMAND="export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH;mjpg_streamer -i \"input_uvc.so -d $dev $YUV \" -o \"output_http.so -w ${VARWWWCAM0}  -p 808$i -c $ojr:$PASSWD\" "
     fi
 
     if [ "$TYPE" = "homebin" ];then
-COMMAND="cd ~/bin/mjpg-streamer; export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:./;./mjpg_streamer -i \"input_uvc.so -d $dev $YUV \" -o \"output_http.so -w ./www/cam0 -p 808$i -c ojr:$PASSWD\" "
+COMMAND="cd ~/bin/mjpg-streamer; export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:./;./mjpg_streamer -i \"input_uvc.so -d $dev $YUV \" -o \"output_http.so -w ./www/cam0 -p 808$i -c $ojr:$PASSWD\" "
     fi
 
  echo $COMMAND
