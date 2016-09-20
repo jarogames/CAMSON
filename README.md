@@ -8,9 +8,9 @@
 
 - mjpeg-streamer ... globaly, if not found, it is assumed to be in  HOME/bin
 
--udevadm  ... to get details about cam and enable sorting
+- udevadm  ... to get details about cam and enable sorting
 
--lsusb ... to show usb 1. 2. map and actual connections
+- lsusb ... to show usb 1. 2. map and actual connections
 
 - www files in a good place ... var/www or HOME/bin/www
 
@@ -22,11 +22,17 @@
 
   Newly, at least somewhere
  
- ## HOME files
+## HOME files
  
  - HOME/.camson.pass  ... just a password
  
  - HOME/.camson ... list of cameras, where the order determines the screen mjpg(i) position. Good for creating multi-images
   it is created if not found.
  
- 
+## To check running
+
+ - look with ```screen -ls | grep mjpg ```
+
+ - if you run CAMSON in screen, it is fine, you can look what is happening
+
+### myservice is perfect for CAMSON
