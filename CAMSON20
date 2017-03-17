@@ -1,0 +1,495 @@
+#!/bin/bash 
+
+####################################
+# CAMSON 2.0
+####################################
+# uses screen to run mjpg_streamer for usb cameras
+#   compares   /dev/video    and    screen -ls mjpg
+#
+####################### TYPICAL screens:
+# camson
+# mjpgx          x=0..max
+# streampic_x    x=0..max
+#################################################################3
+#
+#
+#
+clear
+
+USERPAS=""
+PASSWD=`cat $HOME/.camson.pass 2>/dev/null`
+if [ "$PASSWD" != "" ]; then
+ USERPAS=" -c ojr:$PASSWD"
+else
+ USERPAS=""
+ echo i... no passw
+fi
+
+PIRESOL=`cat $HOME/.camson.rpires 2>/dev/null`
+if [ "$PIRESOL" = "" ]; then
+    echo i... no RPi resolution
+else
+    echo "i ... order of cameras in .camson affects the PORTS"
+fi
+
+PROBLEM=0
+
+
+#### I use three different paths
+
+USRLIB=""
+CDBIN=""
+RESOLUTION=" -r 1280x1024 "
+RESOLUTION=""
+RESOLUTIONRASPI=" -x 640 -y 480 "
+RESOLUTIONRASPI=" -x 1280 -y 1024 "
+RESOLUTIONRASPI=""
+
+
+echo i "===" checking placement of mjpg_streamer "===="
+
+######## LOCATION NOW:    CDBIN
+CDBIN=""
+
+#pib pi3
+which $HOME/bin/mjpg-streamer-experimental/mjpg_streamer; 
+if [ "$?" = "0" ]; then
+ echo "+ ... mjpg_streamer RPi/pib/ubuntu @bin ok" 
+ USRLIB="$HOME/bin/mjpg-streamer-experimental"
+ CDBIN="$HOME/bin/mjpg-streamer-experimental"
+else
+ echo "- ... not RPi pib bin HOME"
+fi
+
+#pim
+which $HOME/mjpg-streamer/mjpg-streamer-experimental/mjpg_streamer; 
+if [ "$?" = "0" ]; then
+ echo "+ ... mjpg_streamer RPi pim HOME ok"
+ USRLIB="$HOME/mjpg-streamer/mjpg-streamer-experimental"
+ CDBIN="$HOME/mjpg-streamer/mjpg-streamer-experimental"
+else
+ echo "- ... not RPi pim HOME"
+fi
+
+#p34 debian
+which mjpg_streamer >/dev/null
+if [ "$?" = "0" ]; then
+ echo "+ ... mjpg_streamer debian ok"  
+ USRLIB="/usr/lib"
+ CDBIN="."
+else
+ echo "- ... not found by simple which "
+fi
+
+
+# CWD test on ubuntu
+ls mjpg_streamer >/dev/null
+if [ "$?" = "0" ]; then
+ echo "+ ... mjpg_streamer CWD ok"  
+ USRLIB="."
+ CDBIN="."
+else
+ echo "- ... not found in CWD "
+fi
+
+
+if [ "$CDBIN" = "" ]; then
+    echo ! ... path tomjpg_streamer not found ...
+    #match basename 
+    locate -b mjpg_streamer | grep -v '\.o\|\.c\|\.h'
+    #locate -b mjpg_streamer | xargs -n 1 basename | grep -e "^mjpg_streamer$"
+
+    echo ! ... quitting
+    exit
+fi
+
+
+
+INPUTRASP=""
+vcgencmd get_camera 2>/dev/null
+if [ "$?" = "0" ]; then
+ echo "+ ... vcgencmd ok"
+# INPUTRASP="\"input_raspicam.so  -hf -vf -x 640 -y 480 -mm matrix -fps 3 \" "
+ INPUTRASP="\"input_raspicam.so  -hf -vf $RESOLUTIONRASPI -mm matrix -fps 3 \" "
+else
+ echo "- ... vgencmd test ... not RPi "
+fi
+
+
+### I will have mjpg 0-7; I want to assign them not video 0-7 but .camson lines 0-7
+declare -a VIDEO=()
+
+
+
+
+
+#################################################################FUNCTION BEGIN
+function restoreOrder {
+ DEVS=(`ls -1 /dev/video* 2>/dev/null`)
+ rm /tmp/camsonrc1a 2>/dev/null
+
+ #####  CREATE .CAMSON in /tmp
+ for i in ${!DEVS[*]} ; do 
+     dev=${DEVS[$i]}
+     echo "+ ... testing name of camera $i"
+     udevadm info --name=/dev/video$i | grep -v SHORT | grep SERIAL >>  /tmp/camsonrc1a  # list of names!
+ done
+
+ cat   /tmp/camsonrc1a | sort >   /tmp/camsonrc1  # sort the list
+
+ #####  COMPARE .CAMSON to new situation
+ if [ -e $HOME/.camson ]; then
+     echo "o ... camson resources exist"
+     cat  $HOME/.camson | sort >  /tmp/camsonrc2
+     diff  /tmp/camsonrc1   /tmp/camsonrc2 >/dev/null
+     if [ "$?" = "0" ]; then
+ 	echo "i ... same cameras as the last time putting order to  /tmp/camsonrc1"
+ 	cp  $HOME/.camson   /tmp/camsonrc1 
+     else
+ 	echo "! ... different camera situation"
+# 	diff  /tmp/camsonrc1   /tmp/camsonrc2
+ 	PROBLEM=1
+ 	echo "? ..... using default order...not .camson"
+     fi
+ else
+     echo "+ ... no .camson resources ... wait I create"
+     cat /tmp/camsonrc1a > $HOME/.camson
+     cp  $HOME/.camson   /tmp/camsonrc1 
+ fi
+ ##### END OF COMPARE .CAMSON
+
+ 
+ ####  FIND A RELATION BBETWEEN videoi and text in .CAMSON
+ #MAXCAMS=`echo ../.camson | wc -l`
+ MAXCAMS=`echo /tmp/camsonrc1 | wc -l`
+ VIDEO=()
+ MAXCAMS=$(( $MAXCAMS + 1  ))
+ for i in ${!DEVS[*]} ; do
+     j=$(( $i + 1 ))
+ #    CAM=`sed "${j}q;d" $HOME/.camson`
+     CAM=`sed "${j}q;d" /tmp/camsonrc1`
+ #    echo  "... mjpg$i should be  $CAM"
+     for k in ${!DEVS[*]} ; do
+ 	udevadm info  --name=/dev/video$k | grep SERIAL | grep "$CAM" > /dev/null
+ 	if [ "$?" = 0 ]; then
+ 	    echo mjpg$i=/dev/video$k /$CAM/
+ 	    VIDEO[$i]="/dev/video$k"
+ 	fi
+     done
+ done
+}
+ #### VIDEO()  FILLED   restoreOrder ####
+#################################################################FUNCTION END
+
+
+
+
+
+ 
+################################################################
+#     lsusb | sort -n | grep "root hub"  ....  all bussses
+###BUSES=(`lsusb| sort -n | awk -e '{print $2}' | uniq` )
+
+
+
+#################################################################FUNCTION BEGIN
+function listbusses(){
+ #echo . .. checking usb busses
+ BUS20=(`lsusb | sort -n | grep "root hub" | grep "2.0" | awk  '{print $2}'`)
+ BUS11=(`lsusb | sort -n | grep "root hub" | grep "1.1" | awk  '{print $2}'`)
+ USEDBUS=(`lsusb| grep -v "root hub" | sort -n          | awk  '{print $2}' | uniq` )
+  
+ echo "----------------------------------------------- BUS 2.0  fast"
+ for u2 in  ${BUS20[*]} ; do
+     echo ": BUS20 = $u2"
+     B2DEV=`lsusb | sort -n | grep -v "root hub" |grep "Bus $u2" | sed -e "s/Bus $u2/  /" | sed -e "s/ /_/g" `
+     for j in ${B2DEV[*]}; do
+ 	echo "-" $j
+     done
+  done
+ echo "----------------------------------------------- BUS 1.1  slow"
+ for u11 in  ${BUS11[*]}; do
+     echo ": BUS11 = $u11"
+     B1DEV=`lsusb | sort -n | grep -v "root hub" |grep "Bus $u11" | sed -e "s/Bus $u11/  /" | sed -e "s/ /_/g" `
+     for j in ${B1DEV[*]}; do
+ 	echo "-" $j
+     done
+ #    lsusb | sort -n | grep -v "root hub" |grep "Bus $u11" | sed -e "s/Bus $u11/  /"
+ done
+ echo "----------------------------------------------- EOBUS"
+# echo ===============================================
+}
+#################################################################FUNCTION END
+
+
+
+
+
+
+
+
+#################################################################FUNCTION BEGIN
+function PrepCmd 
+{
+ ###   [system|tmp|syspic]  dev  i
+ dev=$1
+ i=$2
+ local YUV=$3
+ ### dev je /dev/video0 nebo jiny /dev/
+ ### i je proste poradi portu ......  0 1 2 atd
+ 
+# NU=`which mjpg_streamer `
+# if [ $? = 0 ]; then
+#  TYPE="sys"
+# else
+#  TYPE="homebin"
+# fi
+ TYPE="none"
+
+# echo . device $dev i=$i...command type = $TYPE 1>&2
+#    # this worked on p34
+#    if [ "$TYPE" = "sys" ];then
+# COMMAND="export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH;mjpg_streamer -i \"input_uvc.so -d $dev $YUV \" -o \"output_http.so -w /var/www/cam0 -p 808$i -c ojr:$PASSWD\" "
+#    fi
+#
+#    if [ "$TYPE" = "homebin" ];then
+# COMMAND="cd ~/bin/mjpg-streamer; export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:./;./mjpg_streamer -i \"input_uvc.so -d $dev $YUV \" -o \"output_http.so -w ./www/cam0 -p 808$i -c ojr:$PASSWD\" "
+#    fi
+
+# if [ "$INPUTRASP" != "" -a "$i" = "0" ]; then
+#   ### yes raspi
+#   COMMAND="cd $CDBIN; export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:./;./mjpg_streamer -i \"input_raspicam.so  -hf -vf -x 640 -y 480 -mm matrix -fps 3 \" -o \"output_http.so -w ./www -p 808$i -c ojr:$PASSWD\" "
+#else
+   COMMAND="cd $CDBIN; export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:./;./mjpg_streamer -i \"input_uvc.so -d $dev $YUV $RESOLUTION \" -o \"output_http.so -w ./www -p 808$i $USERPAS\" "
+# fi
+
+ echo $COMMAND
+}
+#################################################################FUNCTION END
+
+
+
+
+
+
+
+
+#################################################################FUNCTION BEGIN
+function testvids(){
+    if [ "$INPUTRASP" != "" ]; then
+	SCRPI=`screen -ls | grep picam | cut -f 2`
+	if [ "$SCRPI" = "" ]; then
+	    echo "! ... no picam screen on raspberry"
+	    BALANCE=1 
+	    PIRESOL=`cat $HOME/.camson.rpires`
+	    if [ "$PIRESOL" = "1024" ]; then
+	    command="cd $CDBIN; export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:./;./mjpg_streamer -i \"input_raspicam.so  -hf -vf -x 1024 -y 768 -mm matrix -fps 3 \" -o \"output_http.so -w ./www -p 8088 $USERPAS\" "
+	    elif  [ "$PIRESOL" = "1280" ]; then
+	    command="cd $CDBIN; export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:./;./mjpg_streamer -i \"input_raspicam.so  -hf -vf -x 1280 -y 1024 -mm matrix -fps 3 \" -o \"output_http.so -w ./www -p 8088  $USERPAS\" "
+	    elif  [ "$PIRESOL" = "1920" ]; then
+	    command="cd $CDBIN; export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:./;./mjpg_streamer -i \"input_raspicam.so  -hf -vf -x 1920 -y 1080 -mm matrix -fps 3 \" -o \"output_http.so -w ./www -p 8088 $USERPAS\" "
+	    elif  [ "$PIRESOL" = "1296" ]; then
+	    command="cd $CDBIN; export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:./;./mjpg_streamer -i \"input_raspicam.so  -hf -vf -x 1296 -y 972 -mm matrix -fps 3 \" -o \"output_http.so -w ./www -p 8088 $USERPAS\" "
+	    else
+	    command="cd $CDBIN; export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:./;./mjpg_streamer -i \"input_raspicam.so  -hf -vf -x 640 -y 480 -mm matrix -fps 3 \" -o \"output_http.so -w ./www -p 8088 $USERPAS\" "
+	    fi
+	    [ $DEBUG = 1 ] && echo command== $command
+	    /usr/bin/screen -dmS picam  sh -c "$command" 
+	    sleep 1 
+	    OUT=`screen -ls picam | grep picam`
+	    if [ "$?" != 0 ]; then
+		echo ! NO SCREEN launched ....
+	    else
+		echo + $OUT
+	    fi
+	fi
+    fi
+
+
+    #    echo .I test number of video devices against number of 'screen' servers
+    DEVS=(`ls -1 /dev/video* 2>/dev/null`)
+    SCR=(`screen -ls | grep mjpg | cut -f 2`)
+    #    echo i ... ${#SCR[*]} screens and ${#DEVS[*]} devices
+
+    ### NOT OK ###
+    if [ "${#DEVS[*]}" -gt  "${#SCR[*]}" ]; then
+	echo ! .. servers missing ... `date`
+	[ $DEBUG = 1 ] && echo "= ... "${#DEVS[*]} device/s/ = ${DEVS[*]}
+	[ $DEBUG = 1 ] && echo "= ... "${#SCR[*]} server/s/ = ${SCR[*]}
+	BALANCE=1
+     ### 1:
+	restoreOrder
+#	sleep 5
+	for (( i=0; i<8; i++)); do
+	    SS=`screen -ls | grep mjpg$i | cut -f 2`
+	    # weaker condition ... video NOTexists or  mjpg NOT
+#	    if [  -e /dev/video$i ]; then
+	    if [  -e "${VIDEO[$i]}" ]; then
+		echo  ! ...  device ${VIDEO[$i]}  i = $i exists !
+		sleep 5
+		if [ "$SS" = "" ];then
+		    echo ! ... video$i /${VIDEO[$i]}/ exists without mjpg$i
+     ### restart ####
+		    arr=( $(ps -ef | grep mjpg$i | grep input_uvc | grep -vi screen | grep -vi export | awk  '{print $2}')  )
+		    for i  in  ${arr[*]}; do
+			echo ! killing loop $i
+			kill $i
+		    done
+#		    dev=/dev/video$i
+		    dev=${VIDEO[$i]}
+		    echo x ... START $dev
+		    
+
+ ####  CHECK YUVness #####
+ model=`udevadm info  --name=/dev/video$i | grep ID_MODEL_ID | awk -F= '{print $2 }'`
+ vendor=`udevadm info  --name=/dev/video$i | grep ID_VENDOR_ID | awk -F= '{print $2 }'`
+ modve="$vendor:$model"
+ echo -n "i ... $modve ... "
+ local yuv
+		    YCAMS='0c45:6340\|046d:080f\|046d:082b'
+		    YCAMS=$YCAMS'\|046d:0825'   #  my zoomcam ZD
+		    YCAMS=$YCAMS'\|042f:a133'   # chicony-lidl-vakl
+		    YCAMS=$YCAMS'\|0458:708c'   # this is wide angle Genius Widecam F100
+		    echo $modve | grep $YCAMS >/dev/null
+		    if [ "$?" = "0" ];then
+			yuv="-y"
+			echo p ... yuv model camera
+		    else
+			yuv=" "
+			echo p... jpeg model camera 
+		    fi
+ ############### YUVness checked
+ # $i  je ted screen &  video
+		    command=$(PrepCmd $dev $i "$yuv")
+		    [ $DEBUG = 1 ] && echo command== $command
+		    /usr/bin/screen -dmS mjpg$i  sh -c "$command" 
+		    sleep 1 
+		    OUT=`screen -ls mjpg$i | grep mjpg`
+		    if [ "$?" != 0 ]; then
+			echo ! NO SCREEN launched ....
+		    else
+			echo + $OUT
+		    fi
+		fi
+	    else
+		if [ "$SS" != ""  ]; then
+		    echo !   mjpg$i to kill ... should not happen
+		fi
+	    fi
+	done
+    else      ##### OK NOT OK #####  dev > scr
+    ####### 0: 
+	echo + videos==mjpgs==${#DEVS[*]}  `date +____%Y/%m/%d__%H:%M:%S`
+	BALANCE=0
+    fi
+}
+#################################################################FUNCTION END
+
+
+
+
+
+
+
+
+
+
+#################################################################FUNCTION BEGIN
+function help(){
+ echo "-------------------------------------------------------"
+ echo CAMSON ==  CAMeraS ON ... checks /dev/video and launches subsequently the servers
+ echo "-------------------------------------------------------"
+     echo ""
+     echo "HELP:"
+     echo $0 "check  ...     checks all servers vs. videos/imgs every $TIMECHK seconds"
+     echo $0 "checkvid  ...  checks servers vs. videos every $TIMECHK seconds"
+ #    echo $0 "checkpic  ...  checks servers vs. videos every $TIMECHK seconds"
+     echo ""
+ exit 0
+}
+#################################################################FUNCTION END
+
+
+
+
+
+#################################################################FUNCTION BEGIN
+function restart_all(){
+    killall mjpg_streamer
+    [ $DEBUG = 1 ] &&  echo ...waiting to server bail out ...
+    sleep 2
+
+    for i in ${!DEVS[*]} ; do
+	dev=${DEVS[$i]}
+	[ $DEBUG = 1 ] && echo device $dev number $i
+	[ -e /var/www/cam0 ] || echo NO  /var/www/cam0
+
+	command=$(PrepCmd $dev $i)
+	[ $DEBUG = 1 ] &&	echo command== $command
+	/usr/bin/screen -dmS mjpg$i  sh -c "$command"
+    done
+
+
+    [ $DEBUG = 1 ] && sleep 1 &&  screen -ls | grep mjpg
+}
+#################################################################FUNCTION END
+
+
+
+
+#################################################################FUNCTION BEGIN
+function setyuv
+{
+ echo  "+ .. setting YUV transfer "
+ YUV="-y"
+}
+#################################################################FUNCTION END
+
+
+
+
+
+########################################################
+#   testvids <- restoreOrder
+#
+#                 
+#    testvids;
+#    listbusses;
+#
+#
+#####################################################
+####export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
+
+DEBUG=1
+BALANCE=0
+TIMECHK=4
+
+
+COMMAND=$1
+[ "$COMMAND" = "-h" ] && help
+
+YUV=""
+[ "$COMMAND" = "-y" ] && {
+    setyuv 
+    COMMAND="";
+}
+
+    
+COUNT=0
+[ "$COMMAND" = "check" -o "$COMMAND" = "" ] && {
+    while [  1 ]; do
+	COUNT2=$(( $COUNT + 1 ))
+	COUNT=$COUNT2
+	echo "$COUNT ============================================= loop $COUNT"
+        testvids;
+
+	listbusses;
+#	echo i .. sleep $TIMECHK seconds
+        sleep $TIMECHK
+#	echo i .. continue
+    done
+}
+
+
+
+exit

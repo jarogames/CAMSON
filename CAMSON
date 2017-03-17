@@ -100,7 +100,7 @@ done
  
 ################################################################
 #     lsusb | sort -n | grep "root hub"  ....  all bussses
-###BUSES=(`lsusb| sort -n | awk -e '{print $2}' | uniq` )
+###BUSES=(`lsusb| sort -n | awk '{print $2}' | uniq` )
 
 
 
@@ -108,9 +108,9 @@ done
 
 function listbusses(){
 #echo . .. checking usb busses
-BUS20=(`lsusb | sort -n | grep "root hub" | grep "2.0" |  awk -e '{print $2}'`)
-BUS11=(`lsusb | sort -n | grep "root hub" | grep "1.1" |  awk -e '{print $2}'`)
-USEDBUS=(`lsusb| grep -v "root hub" | sort -n | awk -e '{print $2}' | uniq` )
+BUS20=(`lsusb | sort -n | grep "root hub" | grep "2.0" |  awk '{print $2}'`)
+BUS11=(`lsusb | sort -n | grep "root hub" | grep "1.1" |  awk '{print $2}'`)
+USEDBUS=(`lsusb| grep -v "root hub" | sort -n | awk '{print $2}' | uniq` )
 
 echo ============================== BUS 2.0  fast
 for u2 in  ${BUS20[*]} ; do
@@ -205,7 +205,7 @@ function testvids(){
 		if [ "$SS" = "" ];then
 		    echo ! video$i /${VIDEO[$i]}/ exists without mjpg$i
 ################### restart #########################
-		    arr=( $(ps -ef | grep mjpg$i | grep input_uvc | grep -vi screen | grep -vi export | awk -e '{print $2}')  )
+		    arr=( $(ps -ef | grep mjpg$i | grep input_uvc | grep -vi screen | grep -vi export | awk '{print $2}')  )
 		    for i  in  ${arr[*]}; do
 			echo ! killing loop $i
 			kill $i
