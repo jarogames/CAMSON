@@ -348,7 +348,7 @@ function testvids(){
  local yuv
 		    YCAMS='0c45:6340\|046d:080f\|046d:082b'
 		    YCAMS=$YCAMS'\|046d:0825'   #  my zoomcam ZD
-		    YCAMS=$YCAMS'\|042f:a133'   # chicony-lidl-vakl
+		    YCAMS=$YCAMS'\|04f2:a133'   # chicony-lidl-vakl
 		    YCAMS=$YCAMS'\|0458:708c'   # this is wide angle Genius Widecam F100
 		    echo $modve | grep $YCAMS >/dev/null
 		    if [ "$?" = "0" ];then
