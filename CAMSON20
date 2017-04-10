@@ -1,5 +1,7 @@
-#!/bin/bash 
-
+#!/bin/bash
+#
+# this will overcome problems on p34 and path...we need www
+export PATH=$HOME/bin/mjpg-streamer-experimental:$HOME/bin:$PATH
 ####################################
 # CAMSON 2.0
 ####################################
@@ -58,7 +60,7 @@ if [ "$?" = "0" ]; then
  USRLIB="$HOME/bin/mjpg-streamer-experimental"
  CDBIN="$HOME/bin/mjpg-streamer-experimental"
 else
- echo "- ... not RPi pib bin HOME"
+ echo "- ... not  HOME/bin/experim"
 fi
 
 #pim
@@ -68,22 +70,23 @@ if [ "$?" = "0" ]; then
  USRLIB="$HOME/mjpg-streamer/mjpg-streamer-experimental"
  CDBIN="$HOME/mjpg-streamer/mjpg-streamer-experimental"
 else
- echo "- ... not RPi pim HOME"
+ echo "- ... not  HOME/mjpg-streamer/exper"
 fi
 
 #p34 debian
 which mjpg_streamer >/dev/null
 if [ "$?" = "0" ]; then
- echo "+ ... mjpg_streamer debian ok"  
+ echo "+ ... mjpg_streamer simple which  ok"  
  USRLIB="/usr/lib"
- CDBIN="."
+# CDBIN="."
+ CDBIN=`which mjpg_streamer | xargs dirname`
 else
  echo "- ... not found by simple which "
 fi
 
 
 # CWD test on ubuntu
-ls mjpg_streamer >/dev/null
+ls mjpg_streamer 2>/dev/null
 if [ "$?" = "0" ]; then
  echo "+ ... mjpg_streamer CWD ok"  
  USRLIB="."
