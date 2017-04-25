@@ -61,15 +61,23 @@ def set_center(cross,image,x,y, dx,dy):
     return cross, x+dx-int(bx/2), y+dy-int(by/2), x+dx,y+dy
 
 
+
+
+
 #vc = cv2.VideoCapture('http://p34:8080/?action=stream')
-vc = cv2.VideoCapture('http://user:password@p34:8080/?action=stream')
+vc = cv2.VideoCapture('http://u:p@p34:8080/?action=stream')
+vc.set( cv2.CAP_PROP_BUFFERSIZE, 1)
+vc.set( cv2.CAP_PROP_FPS, 25)
 if vc.isOpened(): # try to get the first frame
     rval, frame = vc.read()
     frameb=frame
 else:
     rval = False
 
+
 s_img = cv2.imread("cross.png", -1)
+
+
 
 cross=1
 zoom=0
@@ -86,6 +94,8 @@ if s_img.shape[1]!=wc or s_img.shape[0]!=hc:
     s_img=cv2.resize(s_img, (wc,hc)  ,interpolation = cv2.INTER_CUBIC )
 
 s_img2,xoff,yoff,aimx,aimy=set_center( s_img, frame, aimx,aimy ,0,0)
+
+
 while True:
     #print( width,height, xoff,yoff,s_img2.shape[1], s_img2.shape[0])
     ret, frame = vc.read()
@@ -106,7 +116,7 @@ while True:
         cv2.imshow('Video', frame)
 
     
-    key = cv2.waitKey(50)
+    key = cv2.waitKey(10)
     #print(key)
     #================= arrows
     if key == 83:
