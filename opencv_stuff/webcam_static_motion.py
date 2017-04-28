@@ -38,6 +38,7 @@ ap.add_argument("-v", "--video", help="path to the video file")
 ap.add_argument("-a", "--min-area", type=int, default=500, help="minimum area size")
 ap.add_argument("-s", "--static",  action='store_true', help="no time blur")
 ap.add_argument("-sb", "--showblur",  action='store_true', help="show time blur")
+ap.add_argument("-sr", "--showreal",  action='store_true', help="show real pic")
 args = vars(ap.parse_args())
  
 # if the video argument is None, then we are reading from webcam
@@ -116,7 +117,8 @@ while True:
         cv2.imwrite( DESTINATION+stamp+'.jpg',frame)
         
     # show the frame and record if the user presses a key
-    cv2.imshow("Security Feed", frame)
+    if args['showreal']:
+        cv2.imshow("Security Feed", frame)
 #    cv2.imshow("Security Feed", firstFrame)
 #    cv2.imshow("Thresh", thresh)
 #    cv2.imshow("Frame Delta", frameDelta)
