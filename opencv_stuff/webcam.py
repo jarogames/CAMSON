@@ -78,24 +78,27 @@ def load_source():
     return SRC
 
 SRC=load_source()
-vc = cv2.VideoCapture( SRC[0]  )
+vc =  cv2.VideoCapture( SRC[0]  )
 vcb = cv2.VideoCapture( SRC[1] )
 
     #vc.set( cv2.CAP_PROP_BUFFERSIZE, 1)
 #vc.set( cv2.CAP_PROP_FPS, 25)
 if vc.isOpened(): # try to get the first frame
     rval, frame = vc.read()
-    #frameb=frame
 else:
     rval = False
-    print('!... no source',SRC)
+    print('!... no source',SRC[0])
     quit()
 if vcb.isOpened(): # try to get the first frame
     rvalb, frameb = vcb.read()
-    #frameb=frame
+else:
+    print('!... no second cam')
 
 
 s_img = cv2.imread("cross.png", -1)
+if s_img is None:
+    print('!... no cross')
+    quit()
 
 
 cross=1
