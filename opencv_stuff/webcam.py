@@ -6,6 +6,7 @@ import cv2
 from os.path import expanduser
 import pickle
 import os.path
+import numpy as np
 """
  Webcamera viewer with the aiming cross
 """
@@ -61,22 +62,40 @@ def set_center(cross,image,x,y, dx,dy):
     return cross, x+dx-int(bx/2), y+dy-int(by/2), x+dx,y+dy
 
 
+def load_source():
+    '''
+    Read the stream source from ~/.webcam.source
+    '''
+    home = expanduser("~")
+    with open( home+'/.webcam.source') as f:
+        SRC=f.readlines()
+    SRC=[x.rstrip() for x in SRC]  # rstrip lines
+#    if SRC[1].find('http'):        # if stream:::
+    SRC=[x+'/?action=stream' if x.find('http')>=0 else x for x in SRC  ]
+    SRC=[ int(x) if x.isdigit() else x for x in SRC  ]
+    if len(SRC)==1:SRC.append('')  # append second
+    print('i... webcam.source lines',SRC)
+    return SRC
 
+SRC=load_source()
+vc = cv2.VideoCapture( SRC[0]  )
+vcb = cv2.VideoCapture( SRC[1] )
 
-
-#vc = cv2.VideoCapture('http://p34:8080/?action=stream')
-vc = cv2.VideoCapture('http://u:p@p34:8080/?action=stream')
-vc.set( cv2.CAP_PROP_BUFFERSIZE, 1)
-vc.set( cv2.CAP_PROP_FPS, 25)
+    #vc.set( cv2.CAP_PROP_BUFFERSIZE, 1)
+#vc.set( cv2.CAP_PROP_FPS, 25)
 if vc.isOpened(): # try to get the first frame
     rval, frame = vc.read()
-    frameb=frame
+    #frameb=frame
 else:
     rval = False
+    print('!... no source',SRC)
+    quit()
+if vcb.isOpened(): # try to get the first frame
+    rvalb, frameb = vcb.read()
+    #frameb=frame
 
 
 s_img = cv2.imread("cross.png", -1)
-
 
 
 cross=1
@@ -99,6 +118,9 @@ s_img2,xoff,yoff,aimx,aimy=set_center( s_img, frame, aimx,aimy ,0,0)
 while True:
     #print( width,height, xoff,yoff,s_img2.shape[1], s_img2.shape[0])
     ret, frame = vc.read()
+    if vcb.isOpened():
+        retb, frameb = vcb.read()
+        frame = np.concatenate(( frameb, frame), axis=1)
     if cross==1:
         for c in range(0,3):
             frame[yoff:yoff+s_img2.shape[0],xoff:xoff+s_img2.shape[1], c] =\
@@ -115,9 +137,9 @@ while True:
     else:
         cv2.imshow('Video', frame)
 
-    
+        
+
     key = cv2.waitKey(10)
-    #print(key)
     #================= arrows
     if key == 83:
         s_img2,xoff,yoff,aimx,aimy=set_center( s_img, frame, aimx,aimy, 10,0 )
