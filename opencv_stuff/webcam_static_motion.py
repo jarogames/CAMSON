@@ -51,7 +51,14 @@ time.sleep(0.25)
 #    camera = cv2.VideoCapture(args["video"])
 # initialize the first frame in the video stream
 
+
+
+
 firstFrame = None
+#video  = cv2.VideoWriter(DESTINATION+'video.avi', -1, 25, (640, 480));
+#fourcc = cv2.cv.CV_FOURCC(*'XVID')
+#fourcc =cv2.VideoWriter_fourcc(*'XVID')
+#out = cv2.VideoWriter(DESTINATION+'output.avi',fourcc, 20.0, (640,480))
 while True:
    
     text = "Unoccupied"
@@ -103,18 +110,22 @@ while True:
         # compute the bounding box for the contour, draw it on the frame,
         # and update the text
         (x, y, w, h) = cv2.boundingRect(c)
-        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+        ############# RECTNGLE
+        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 1)
         text = "Occupied"
         textcolor= (0, 0, 255)
         # draw the text and timestamp on the frame
-    cv2.putText(frame, "Room Status: {}".format(text), (10, 20),
+    cv2.putText(frame, "{}".format(text), (10, 20),
            cv2.FONT_HERSHEY_SIMPLEX, 0.5, textcolor , 2)
     
     cv2.putText(frame, datetime.datetime.now().strftime("%A %d %B %Y %I:%M:%S%p"),
      (10, frame.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.4, textcolor, 1)
     if text.find('Occupied')>=0:
         stamp=datetime.datetime.now().strftime("%Y%m%d_%H%M%S.%f")[:-5]
-        cv2.imwrite( DESTINATION+stamp+'.jpg',frame)
+        ########## QUALITY .... from 120k -> 70k
+        cv2.imwrite( DESTINATION+stamp+'.jpg',frame,[cv2.IMWRITE_JPEG_QUALITY, 80])
+        #out.write( frame )
+
         
     # show the frame and record if the user presses a key
     if args['showreal']:
@@ -131,5 +142,6 @@ while True:
         break
  
 # cleanup the camera and close any open windows
+#out.release()
 camera.release()
 cv2.destroyAllWindows()
