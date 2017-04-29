@@ -24,13 +24,21 @@ def load_source():
     return SRC
 
 
+'''
+global stuff
+ - stamp for directory
+ - sources from .webcam.source file
+ - alpha - bg.relaxation
+ - last_stamp ... to reduce disk usage
+'''
 stamp=datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 DESTINATION=expanduser("~")+'/.motion/cam_'+stamp+'/'
 if not os.path.exists(DESTINATION):
     os.makedirs(DESTINATION)
 SRC=load_source()  # load from  .webcam.source
-alpha=0.03  # running average
-
+alpha=0.07  # running average
+last_stamp=""
+relax=0  # remove images after flash
 
 # construct the argument parser and parse the arguments
 ap = argparse.ArgumentParser()
@@ -61,8 +69,6 @@ firstFrame = None
 #out = cv2.VideoWriter(DESTINATION+'output.avi',fourcc, 20.0, (640,480))
 while True:
    
-    text = "Unoccupied"
-    textcolor=(0, 255, 0)
     (grabbed, frame) = camera.read()
     if camera2.isOpened():
         (grabbed, frameb) = camera2.read()
@@ -84,7 +90,10 @@ while True:
         print('i... init first')
         firstFrame = gray
         avg1 = np.float32( gray)
+        fps = camera.get(cv2.CAP_PROP_FPS)
+        print('i... FPS =', fps)
         continue
+   
     if args['static']:
         print('s')
     else:
@@ -102,29 +111,50 @@ while True:
     (cnts,_)=cv2.findContours( thresh.copy(),cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)[-2:]
  
     # loop over the contours
+    maxwh=0
     for c in cnts:
         # if the contour is too small, ignore it
+        maxwh=maxwh+cv2.contourArea(c)
         if cv2.contourArea(c) < args["min_area"]:
             continue
  
         # compute the bounding box for the contour, draw it on the frame,
         # and update the text
         (x, y, w, h) = cv2.boundingRect(c)
-        ############# RECTNGLE
+        ############# RECTANGLE
         cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 1)
+    # remove those with LARGE AREA
+    relax=relax-1
+    print(relax, maxwh)
+    if relax<=0 and maxwh<60000 and maxwh>0:  # low limit for single rect is tested earlier
+        #print('i... area',maxwh)
         text = "Occupied"
         textcolor= (0, 0, 255)
-        # draw the text and timestamp on the frame
+    elif relax>0:
+        text = "...relaxin"
+        textcolor=(255, 0, 0)
+    elif maxwh>60000:
+        text = "Too large"
+        textcolor=(255, 0, 0)
+        #alpha=0.01
+        relax=2*fps
+    else:
+        text = "Unoccupied"
+        textcolor=(0, 255, 0)
+        #alpha=0.03
+
+    # draw the text and timestamp on the frame
     cv2.putText(frame, "{}".format(text), (10, 20),
-           cv2.FONT_HERSHEY_SIMPLEX, 0.5, textcolor , 2)
-    
+           cv2.FONT_HERSHEY_SIMPLEX, 0.6, textcolor , 2)
     cv2.putText(frame, datetime.datetime.now().strftime("%A %d %B %Y %I:%M:%S%p"),
-     (10, frame.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.4, textcolor, 1)
+           (10, frame.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, textcolor, 1)
+
     if text.find('Occupied')>=0:
         stamp=datetime.datetime.now().strftime("%Y%m%d_%H%M%S.%f")[:-5]
+        if int(stamp[-1])%2==0 and last_stamp!=stamp:  # reduce disk usage
         ########## QUALITY .... from 120k -> 70k
-        cv2.imwrite( DESTINATION+stamp+'.jpg',frame,[cv2.IMWRITE_JPEG_QUALITY, 80])
-        #out.write( frame )
+            cv2.imwrite( DESTINATION+stamp+'.jpg',frame,[cv2.IMWRITE_JPEG_QUALITY, 80])
+            last_stamp=stamp
 
         
     # show the frame and record if the user presses a key
