@@ -125,7 +125,7 @@ while True:
         cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 1)
     # remove those with LARGE AREA
     relax=relax-1
-    print(relax, maxwh)
+    #print(relax, maxwh)
     if relax<=0 and maxwh<60000 and maxwh>0:  # low limit for single rect is tested earlier
         #print('i... area',maxwh)
         text = "Occupied"
