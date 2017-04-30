@@ -31,8 +31,8 @@ global stuff
  - alpha - bg.relaxation
  - last_stamp ... to reduce disk usage
 '''
-stamp=datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-DESTINATION=expanduser("~")+'/.motion/cam_'+stamp+'/'
+stampdest=datetime.datetime.now().strftime("%Y%m%d")
+DESTINATION=expanduser("~")+'/.motion/cam_'+stampdest+'/'
 if not os.path.exists(DESTINATION):
     os.makedirs(DESTINATION)
 SRC=load_source()  # load from  .webcam.source
@@ -47,6 +47,7 @@ ap.add_argument("-a", "--min-area", type=int, default=500, help="minimum area si
 ap.add_argument("-s", "--static",  action='store_true', help="no time blur")
 ap.add_argument("-sb", "--showblur",  action='store_true', help="show time blur")
 ap.add_argument("-sr", "--showreal",  action='store_true', help="show real pic")
+ap.add_argument("-sm", "--showmask",  action='store_true', help="show mask")
 args = vars(ap.parse_args())
  
 # if the video argument is None, then we are reading from webcam
@@ -161,7 +162,8 @@ while True:
     if args['showreal']:
         cv2.imshow("Security Feed", frame)
 #    cv2.imshow("Security Feed", firstFrame)
-#    cv2.imshow("Thresh", thresh)
+    if args['showmask']:
+        cv2.imshow("Thresh", thresh)
 #    cv2.imshow("Frame Delta", frameDelta)
     if args['showblur']:
         cv2.imshow("BlurFrame", firstFrame)
