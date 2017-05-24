@@ -17,6 +17,7 @@ webcam.py -s 1 ... number of streams to take
 
 
 parser.add_argument('-s','--streams',  default=1,type=int , help='take one line from .webcam.source')
+parser.add_argument('-c','--cross',   action="store_true" , help='')
 args=parser.parse_args() 
 
 
@@ -174,16 +175,32 @@ else:
 
 #print('FRAMES:', frames)
 
-s_img = cv2.imread("cross.png", -1)
-if s_img is None:
-    print('!... no cross')
-    quit()
+def create_cross():
+    s_img =np.zeros((512,512,4), np.uint8)
+    #RECTANGLE
+    #s_img = cv2.imread("cross.png", -1)
+    if args.cross:
+        s_img=cv2.circle( s_img, (255,255),255, (0,255,0,128),2)
+        s_img=cv2.circle( s_img, (255,255),128, (0,255,0,128),2)
+        s_img=cv2.circle( s_img, (255,255),64, (0,255,0,128), 2)
+        s_img=cv2.line(s_img,(0,255),(511,255),(0,255,0,128), 2)
+        s_img=cv2.line(s_img,(255,0),(255,511),(0,255,0,128), 2)
+    else:
+        s_img=cv2.rectangle(s_img,(1,1),(510,510),(0,255,0,128),2 )
+    if s_img is None:
+        print('!... no cross')
+        quit()
+    else:
+        return s_img
 
+s_img=create_cross()
 
 cross=1
 zoom=0
 xoff=yoff=0
 width,height=frame.shape[1],frame.shape[0]
+width1p,height1p=width,height
+print('ONE FRAME',width,height)
 aimx,aimy=int(width/2),int(height/2)
 ctrl=1
 
@@ -209,37 +226,43 @@ while True:
             ret,framex=vclist[i].read()
             frames.append( framex )
             #print("appending frame")
-    frame=frames[-1]
+    #####frame=frames[-1]
+    frame=frames[0]
     # if 2 images:line
     #    3,4   : 2x2
     #    5,6   : 3x2
+    img_black = np.zeros( (height1p,width1p, 3 ) , dtype=np.uint8   )
+    img_black=img_black+ 123
+    #    print( img_black.shape, frame.shape )
+    
+#    img_black = np.zeros( (height1p,height1p,1) , np.int8)
     if len(frames)<=2:
-        for i in range(len(frames)-2,-1,-1):
-            frame=np.concatenate(( frames[i], frame), axis=1)
+        for i in range(1,len(frames)):
+            frame=np.concatenate(( frame,frames[i] ), axis=1)
     if len(frames)==3:
-            frame=np.concatenate(( frames[-2], frame), axis=1)
-            frameb=frames[-3]
-            frameb=np.concatenate(( frames[-3]*0, frameb), axis=1)
-            frame=np.concatenate(( frame, frameb), axis=0)
+            frame=np.concatenate(( frame, frames[1]), axis=1)
+            frameb=frames[2]
+            frameb=np.concatenate(( frameb, img_black ), axis=1)
+            frame=np.concatenate(( frame, frameb), axis=0)  #  top, bottom
     if len(frames)==4:
-            frame=np.concatenate(( frames[-2], frame), axis=1)
-            frameb=frames[-3]
-            frameb=np.concatenate(( frames[-4], frameb), axis=1)
-            frame=np.concatenate(( frameb, frame), axis=0)
+            frame=np.concatenate(( frame, frames[1]), axis=1)
+            frameb=frames[2]
+            frameb=np.concatenate(( frameb, frames[3] ), axis=1)
+            frame=np.concatenate(( frame, frameb), axis=0)
     if len(frames)==5:
-            frame=np.concatenate(( frames[-2], frame), axis=1)
-            frame=np.concatenate(( frames[-3], frame), axis=1)
-            frameb=frames[-4]
-            frameb=np.concatenate(( frames[-5], frameb), axis=1)
-            frameb=np.concatenate(( frames[-5]*0, frameb), axis=1)
-            frame=np.concatenate(( frameb, frame), axis=0)
+            frame=np.concatenate(( frame, frames[1]), axis=1)
+            frame=np.concatenate(( frame, frames[2]), axis=1)
+            frameb=frames[3]
+            frameb=np.concatenate(( frameb,frames[4] ), axis=1)
+            frameb=np.concatenate(( frameb, img_black), axis=1)
+            frame=np.concatenate(( frame, frameb), axis=0)
     if len(frames)==6:
-            frame=np.concatenate(( frames[-2], frame), axis=1)
-            frame=np.concatenate(( frames[-3], frame), axis=1)
-            frameb=frames[-4]
-            frameb=np.concatenate(( frames[-5], frameb), axis=1)
-            frameb=np.concatenate(( frames[-6], frameb), axis=1)
-            frame=np.concatenate(( frameb, frame), axis=0)
+            frame=np.concatenate(( frame, frames[1]), axis=1)
+            frame=np.concatenate(( frame, frames[2]), axis=1)
+            frameb=frames[3]
+            frameb=np.concatenate(( frameb,frames[4] ), axis=1)
+            frameb=np.concatenate(( frameb, frames[5]), axis=1)
+            frame=np.concatenate(( frame, frameb), axis=0)
             
             
     width,height=frame.shape[1],frame.shape[0]
@@ -285,7 +308,7 @@ while True:
     cv2.imshow('Video', frame2)
 
     key = cv2.waitKey(10)
-    print(key)
+    #print(key)
     if key==104: #H
         key=81
         ctrl=5
@@ -339,7 +362,9 @@ while True:
         save_pos(aimx,aimy,s_img.shape[1],s_img.shape[0])
     if key == ord('\n'):
         print('reload')
-        s_img = cv2.imread("cross.png", -1)
+        #s_img = cv2.imread("cross.png", -1)
+        s_img=create_cross( ) 
+        
         s_img2,xoff,yoff,aimx,aimy=set_center( s_img, frame, aimx,aimy,0,0)
     if key == ord('z'):
         if zoom==0:
