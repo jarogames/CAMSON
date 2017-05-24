@@ -7,11 +7,30 @@ from os.path import expanduser
 import pickle
 import os.path
 import numpy as np
+import subprocess
+import argparse
+import math
+
+parser=argparse.ArgumentParser(description="""
+webcam.py -s 1 ... number of streams to take
+""")
+
+
+parser.add_argument('-s','--streams',  default=1,type=int , help='take one line from .webcam.source')
+args=parser.parse_args() 
+
+
 """
  Webcamera viewer with the aiming cross
 """
 
-
+def monitor_size():
+    CMD="xrandr  | grep \* | cut -d' ' -f4"
+    p=subprocess.check_output(CMD , shell=True)
+    wihe=p.decode('utf8').rstrip().split('x')
+    wihe=list(map(int,wihe))
+    return wihe
+    
 def save_pos(x,y, w, h):
     """
     Save position of the cross into ~/.webcam.position
@@ -77,23 +96,83 @@ def load_source():
     print('i... webcam.source lines',SRC)
     return SRC
 
-SRC=load_source()
-vc =  cv2.VideoCapture( SRC[0]  )
-vcb = cv2.VideoCapture( SRC[1] )
 
-    #vc.set( cv2.CAP_PROP_BUFFERSIZE, 1)
+######################
+#
+#           MAIN ==================
+#
+######################
+
+monitor=monitor_size()
+print( monitor )
+vclist=[]
+
+SRC=load_source()
+
+vc =  cv2.VideoCapture( SRC[0]  )
+if not vc.isOpened(): # try to get the first frame
+    vc=None
+vclist.append( vc )
+
+if args.streams>=2:
+    vcb = cv2.VideoCapture( SRC[1] )
+    if not vcb.isOpened(): # try to get the first frame
+        vcb=None
+else:
+    vcb = None
+vclist.append( vcb )
+
+if args.streams>=3:
+    vcc = cv2.VideoCapture( SRC[2] )
+    if not vcb.isOpened(): # try to get the first frame
+        vcc=None
+else:
+    vcc = None
+vclist.append( vcc )
+
+if args.streams>=4:
+    vcd = cv2.VideoCapture( SRC[3] )
+    if not vcb.isOpened(): # try to get the first frame
+        vcd=None
+else:
+    vcd = None
+vclist.append( vcd )
+
+print( vclist )
+    
+#vc.set( cv2.CAP_PROP_BUFFERSIZE, 1)
 #vc.set( cv2.CAP_PROP_FPS, 25)
-if vc.isOpened(): # try to get the first frame
+#if vc.isOpened(): # try to get the first frame
+
+frames=[]
+if vclist[0]:
     rval, frame = vc.read()
+    frames.append( frame )
 else:
     rval = False
     print('!... no source',SRC[0])
     quit()
-if vcb.isOpened(): # try to get the first frame
+
+#if not vcb is None:
+if vclist[1]:
     rvalb, frameb = vcb.read()
+    frames.append( frameb )
 else:
     print('!... no second cam')
 
+if vclist[2]:
+    rvalb, frameb = vcb.read()
+    frames.append( frameb )
+else:
+    print('!... no second cam')
+
+if vclist[3]:
+    rvalb, frameb = vcb.read()
+    frames.append( frameb )
+else:
+    print('!... no second cam')
+
+#print('FRAMES:', frames)
 
 s_img = cv2.imread("cross.png", -1)
 if s_img is None:
@@ -106,6 +185,7 @@ zoom=0
 xoff=yoff=0
 width,height=frame.shape[1],frame.shape[0]
 aimx,aimy=int(width/2),int(height/2)
+ctrl=1
 
 """
 When I restore the position, I must also resize the original cross.
@@ -116,14 +196,67 @@ if s_img.shape[1]!=wc or s_img.shape[0]!=hc:
     s_img=cv2.resize(s_img, (wc,hc)  ,interpolation = cv2.INTER_CUBIC )
 
 s_img2,xoff,yoff,aimx,aimy=set_center( s_img, frame, aimx,aimy ,0,0)
+if yoff+s_img2.shape[0]>frame.shape[0]:
+    yoff=10
+if xoff+s_img2.shape[1]>frame.shape[1]:
+    xoff=10
 
 
 while True:
+    frames=[]
+    for i in range(len(vclist)):
+        if vclist[i]:
+            ret,framex=vclist[i].read()
+            frames.append( framex )
+            #print("appending frame")
+    frame=frames[-1]
+    # if 2 images:line
+    #    3,4   : 2x2
+    #    5,6   : 3x2
+    if len(frames)<=2:
+        for i in range(len(frames)-2,-1,-1):
+            frame=np.concatenate(( frames[i], frame), axis=1)
+    if len(frames)==3:
+            frame=np.concatenate(( frames[-2], frame), axis=1)
+            frameb=frames[-3]
+            frameb=np.concatenate(( frames[-3]*0, frameb), axis=1)
+            frame=np.concatenate(( frameb, frame), axis=0)
+    if len(frames)==4:
+            frame=np.concatenate(( frames[-2], frame), axis=1)
+            frameb=frames[-3]
+            frameb=np.concatenate(( frames[-4], frameb), axis=1)
+            frame=np.concatenate(( frameb, frame), axis=0)
+    if len(frames)==5:
+            frame=np.concatenate(( frames[-2], frame), axis=1)
+            frame=np.concatenate(( frames[-3], frame), axis=1)
+            frameb=frames[-4]
+            frameb=np.concatenate(( frames[-5], frameb), axis=1)
+            frameb=np.concatenate(( frames[-5]*0, frameb), axis=1)
+            frame=np.concatenate(( frameb, frame), axis=0)
+    if len(frames)==6:
+            frame=np.concatenate(( frames[-2], frame), axis=1)
+            frame=np.concatenate(( frames[-3], frame), axis=1)
+            frameb=frames[-4]
+            frameb=np.concatenate(( frames[-5], frameb), axis=1)
+            frameb=np.concatenate(( frames[-6], frameb), axis=1)
+            frame=np.concatenate(( frameb, frame), axis=0)
+            
+            
+    width,height=frame.shape[1],frame.shape[0]
+        
+#    print( "SIZE ", frame.shape[0],  frame.shape[1] )
     #print( width,height, xoff,yoff,s_img2.shape[1], s_img2.shape[0])
-    ret, frame = vc.read()
-    if vcb.isOpened():
-        retb, frameb = vcb.read()
-        frame = np.concatenate(( frameb, frame), axis=1)
+#    ret, frame = vc.read()
+#    if not vcb is None:
+####    if vcb.isOpened():
+#        retb, frameb = vcb.read()
+#        frame = np.concatenate(( frameb, frame), axis=1)
+    if yoff+s_img2.shape[0]>frame.shape[0]:
+        yoff=20
+        aimx,aimy=int(width/2),int(height/2)
+    if xoff+s_img2.shape[1]>frame.shape[1]:
+        xoff=20
+        aimx,aimy=int(width/2),int(height/2)
     if cross==1:
         for c in range(0,3):
             frame[yoff:yoff+s_img2.shape[0],xoff:xoff+s_img2.shape[1], c] =\
@@ -136,25 +269,40 @@ while True:
         crop_img = frame[  yoff:yoff+s_img2.shape[0], xoff:xoff+s_img2.shape[1] ]
         #frame=crop_img
         frame2 = cv2.resize(crop_img,None,fx=zoom+1, fy=zoom+1 ,interpolation = cv2.INTER_CUBIC)
-        cv2.imshow('Video', frame2)
-    else:
-        cv2.imshow('Video', frame)
+#        cv2.imshow('Video', frame2)
+        frame=frame2
+#    else:
+#        cv2.imshow('Video', frame)
 
-        
+    factor=monitor[1]/frame.shape[0]
+    if factor>1.: factor=1.
+#    print("factor = ", factor, '',monitor[1],'',frame.shape[0])
+    if factor>monitor[0]/frame.shape[1]:
+        factor=monitor[0]/frame.shape[1]
+#        print("   factor = ", factor, '',monitor[0],'',frame.shape[1])
+    if factor>1.: factor=1.
+    frame2 = cv2.resize( frame ,None,fx= factor, fy= factor ,interpolation = cv2.INTER_CUBIC)
+    cv2.imshow('Video', frame2)
 
     key = cv2.waitKey(10)
+    #print(key)
+    if key == 227:   # CTRL for the next
+        ctrl=15
+        key = cv2.waitKey(1)
+        print(' ',key)
+
     #================= arrows
     if key == 83:
-        s_img2,xoff,yoff,aimx,aimy=set_center( s_img, frame, aimx,aimy, 10,0 )
+        s_img2,xoff,yoff,aimx,aimy=set_center( s_img, frame, aimx,aimy, 10*ctrl,0 )
         save_pos(aimx,aimy,s_img.shape[1],s_img.shape[0])
     if key == 81:
-        s_img2,xoff,yoff,aimx,aimy=set_center( s_img, frame, aimx,aimy,-10,0)
+        s_img2,xoff,yoff,aimx,aimy=set_center( s_img, frame, aimx,aimy,-10*ctrl,0)
         save_pos(aimx,aimy,s_img.shape[1],s_img.shape[0])
     if key == 82:
-        s_img2,xoff,yoff,aimx,aimy=set_center( s_img, frame, aimx,aimy,0,-10)
+        s_img2,xoff,yoff,aimx,aimy=set_center( s_img, frame, aimx,aimy,0,-10*ctrl)
         save_pos(aimx,aimy,s_img.shape[1],s_img.shape[0])
     if key == 84:
-        s_img2,xoff,yoff,aimx,aimy=set_center( s_img, frame, aimx,aimy,0,10)
+        s_img2,xoff,yoff,aimx,aimy=set_center( s_img, frame, aimx,aimy,0,10*ctrl)
         save_pos(aimx,aimy,s_img.shape[1],s_img.shape[0])
     #==================zoom
     if key == ord(' '):
@@ -188,6 +336,7 @@ while True:
         #cross=1-cross
         #for c in range(0,3):
         s_img2[:,:, 0],s_img2[:,:,1],s_img2[:,:, 2] = s_img2[:,:, 1],s_img2[:,:,2],s_img2[:,:, 0]
+    if key!=255: ctrl=1
 
 cv2.destroyWindow("preview")
 
