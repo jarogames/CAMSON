@@ -220,7 +220,7 @@ while True:
             frame=np.concatenate(( frames[-2], frame), axis=1)
             frameb=frames[-3]
             frameb=np.concatenate(( frames[-3]*0, frameb), axis=1)
-            frame=np.concatenate(( frameb, frame), axis=0)
+            frame=np.concatenate(( frame, frameb), axis=0)
     if len(frames)==4:
             frame=np.concatenate(( frames[-2], frame), axis=1)
             frameb=frames[-3]
