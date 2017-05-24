@@ -209,16 +209,54 @@ while True:
             ret,framex=vclist[i].read()
             frames.append( framex )
             #print("appending frame")
-    frame=frames[-1]        
-    for i in range(len(frames)-2,-1,-1):
-        frame=np.concatenate(( frames[i], frame), axis=1)
-
+    frame=frames[-1]
+    # if 2 images:line
+    #    3,4   : 2x2
+    #    5,6   : 3x2
+    if len(frames)<=2:
+        for i in range(len(frames)-2,-1,-1):
+            frame=np.concatenate(( frames[i], frame), axis=1)
+    if len(frames)==3:
+            frame=np.concatenate(( frames[-2], frame), axis=1)
+            frameb=frames[-3]
+            frameb=np.concatenate(( frames[-3]*0, frameb), axis=1)
+            frame=np.concatenate(( frameb, frame), axis=0)
+    if len(frames)==4:
+            frame=np.concatenate(( frames[-2], frame), axis=1)
+            frameb=frames[-3]
+            frameb=np.concatenate(( frames[-4], frameb), axis=1)
+            frame=np.concatenate(( frameb, frame), axis=0)
+    if len(frames)==5:
+            frame=np.concatenate(( frames[-2], frame), axis=1)
+            frame=np.concatenate(( frames[-3], frame), axis=1)
+            frameb=frames[-4]
+            frameb=np.concatenate(( frames[-5], frameb), axis=1)
+            frameb=np.concatenate(( frames[-5]*0, frameb), axis=1)
+            frame=np.concatenate(( frameb, frame), axis=0)
+    if len(frames)==6:
+            frame=np.concatenate(( frames[-2], frame), axis=1)
+            frame=np.concatenate(( frames[-3], frame), axis=1)
+            frameb=frames[-4]
+            frameb=np.concatenate(( frames[-5], frameb), axis=1)
+            frameb=np.concatenate(( frames[-6], frameb), axis=1)
+            frame=np.concatenate(( frameb, frame), axis=0)
+            
+            
+    width,height=frame.shape[1],frame.shape[0]
+        
+#    print( "SIZE ", frame.shape[0],  frame.shape[1] )
     #print( width,height, xoff,yoff,s_img2.shape[1], s_img2.shape[0])
 #    ret, frame = vc.read()
 #    if not vcb is None:
 ####    if vcb.isOpened():
 #        retb, frameb = vcb.read()
 #        frame = np.concatenate(( frameb, frame), axis=1)
+    if yoff+s_img2.shape[0]>frame.shape[0]:
+        yoff=20
+        aimx,aimy=int(width/2),int(height/2)
+    if xoff+s_img2.shape[1]>frame.shape[1]:
+        xoff=20
+        aimx,aimy=int(width/2),int(height/2)
     if cross==1:
         for c in range(0,3):
             frame[yoff:yoff+s_img2.shape[0],xoff:xoff+s_img2.shape[1], c] =\
@@ -236,16 +274,20 @@ while True:
 #    else:
 #        cv2.imshow('Video', frame)
 
-    factor=frame.shape[0]/monitor[0]
-    if factor>frame.shape[1]/monitor[1]:
-        factor=frame.shape[1]/monitor[1]
+    factor=monitor[1]/frame.shape[0]
+    if factor>1.: factor=1.
+#    print("factor = ", factor, '',monitor[1],'',frame.shape[0])
+    if factor>monitor[0]/frame.shape[1]:
+        factor=monitor[0]/frame.shape[1]
+#        print("   factor = ", factor, '',monitor[0],'',frame.shape[1])
+    if factor>1.: factor=1.
     frame2 = cv2.resize( frame ,None,fx= factor, fy= factor ,interpolation = cv2.INTER_CUBIC)
     cv2.imshow('Video', frame2)
 
     key = cv2.waitKey(10)
     #print(key)
     if key == 227:   # CTRL for the next
-        ctrl=5
+        ctrl=15
         key = cv2.waitKey(1)
         print(' ',key)
 
