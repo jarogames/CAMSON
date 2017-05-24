@@ -285,7 +285,32 @@ while True:
     cv2.imshow('Video', frame2)
 
     key = cv2.waitKey(10)
-    #print(key)
+    print(key)
+    if key==104: #H
+        key=81
+        ctrl=5
+    if key==106: #J
+        key=82
+        ctrl=5
+    if key==107: #k
+        key=84
+        ctrl=5
+    if key==108: #L
+        key=83
+        ctrl=5
+        ######### SHIFT
+    if key==72: #H
+        key=81
+        ctrl=15 
+    if key==74: #J
+        key=82
+        ctrl=15
+    if key==75: #k
+        key=84
+        ctrl=15
+    if key==76: #L
+        key=83
+        ctrl=15
     if key == 227:   # CTRL for the next
         ctrl=15
         key = cv2.waitKey(1)
@@ -293,16 +318,16 @@ while True:
 
     #================= arrows
     if key == 83:
-        s_img2,xoff,yoff,aimx,aimy=set_center( s_img, frame, aimx,aimy, 10*ctrl,0 )
+        s_img2,xoff,yoff,aimx,aimy=set_center( s_img, frame, aimx,aimy, 5*ctrl,0 )
         save_pos(aimx,aimy,s_img.shape[1],s_img.shape[0])
     if key == 81:
-        s_img2,xoff,yoff,aimx,aimy=set_center( s_img, frame, aimx,aimy,-10*ctrl,0)
+        s_img2,xoff,yoff,aimx,aimy=set_center( s_img, frame, aimx,aimy,-5*ctrl,0)
         save_pos(aimx,aimy,s_img.shape[1],s_img.shape[0])
     if key == 82:
-        s_img2,xoff,yoff,aimx,aimy=set_center( s_img, frame, aimx,aimy,0,-10*ctrl)
+        s_img2,xoff,yoff,aimx,aimy=set_center( s_img, frame, aimx,aimy,0,-5*ctrl)
         save_pos(aimx,aimy,s_img.shape[1],s_img.shape[0])
     if key == 84:
-        s_img2,xoff,yoff,aimx,aimy=set_center( s_img, frame, aimx,aimy,0,10*ctrl)
+        s_img2,xoff,yoff,aimx,aimy=set_center( s_img, frame, aimx,aimy,0,5*ctrl)
         save_pos(aimx,aimy,s_img.shape[1],s_img.shape[0])
     #==================zoom
     if key == ord(' '):
