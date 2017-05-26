@@ -8,12 +8,16 @@ import cv2
 from os.path import expanduser
 import numpy as np
 import os
+
+import locale
+
+
 def load_source():
     '''
-    Read the stream source from ~/.webcam.source
+    Read the stream source from ~/.wmotion.source
     '''
     home = expanduser("~")
-    with open( home+'/.webcam.source') as f:
+    with open( home+'/.wmotion.source') as f:
         SRC=f.readlines()
     SRC=[x.rstrip() for x in SRC]  # rstrip lines
 #    if SRC[1].find('http'):        # if stream:::
@@ -27,7 +31,7 @@ def load_source():
 '''
 global stuff
  - stamp for directory
- - sources from .webcam.source file
+ - sources from .wmotion.source file
  - alpha - bg.relaxation
  - last_stamp ... to reduce disk usage
 '''
@@ -35,10 +39,13 @@ stampdest=datetime.datetime.now().strftime("%Y%m%d")
 DESTINATION=expanduser("~")+'/.motion/cam_'+stampdest+'/'
 if not os.path.exists(DESTINATION):
     os.makedirs(DESTINATION)
-SRC=load_source()  # load from  .webcam.source
+SRC=load_source()  # load from  .wmotion.source
 alpha=0.07  # running average
 last_stamp=""
 relax=0  # remove images after flash
+MMAXWH=60000
+
+
 
 # construct the argument parser and parse the arguments
 ap = argparse.ArgumentParser()
@@ -60,8 +67,10 @@ time.sleep(0.25)
 #    camera = cv2.VideoCapture(args["video"])
 # initialize the first frame in the video stream
 
+import time
 
-
+framecount=0
+framelastat=time.time()
 
 firstFrame = None
 #video  = cv2.VideoWriter(DESTINATION+'video.avi', -1, 25, (640, 480));
@@ -69,12 +78,17 @@ firstFrame = None
 #fourcc =cv2.VideoWriter_fourcc(*'XVID')
 #out = cv2.VideoWriter(DESTINATION+'output.avi',fourcc, 20.0, (640,480))
 while True:
-   
+    #framcounter :
+    if time.time()-framelastat>10.0:
+        fps=int(framecount*100.0)/1000
+        framecount=0
+        framelastat=time.time()
+    framecount+=1
+    ########################  GRABBIONG
     (grabbed, frame) = camera.read()
     if camera2.isOpened():
         (grabbed, frameb) = camera2.read()
         frame = np.concatenate(( frameb, frame), axis=1)
- 
     # if the frame could not be grabbed, then we have reached the end
     # of the video
     if not grabbed:
@@ -115,10 +129,10 @@ while True:
     maxwh=0
     for c in cnts:
         # if the contour is too small, ignore it
-        maxwh=maxwh+cv2.contourArea(c)
         if cv2.contourArea(c) < args["min_area"]:
             continue
  
+        maxwh=maxwh+cv2.contourArea(c) # here it mean NO SAVE smalls
         # compute the bounding box for the contour, draw it on the frame,
         # and update the text
         (x, y, w, h) = cv2.boundingRect(c)
@@ -127,27 +141,28 @@ while True:
     # remove those with LARGE AREA
     relax=relax-1
     #print(relax, maxwh)
-    if relax<=0 and maxwh<60000 and maxwh>0:  # low limit for single rect is tested earlier
+    if relax<=0 and maxwh<MMAXWH and maxwh>0:  # low limit for single rect is tested earlier
         #print('i... area',maxwh)
-        text = "Occupied"
+        text = "Occupied "+str(maxwh)+" "+str(fps)
         textcolor= (0, 0, 255)
     elif relax>0:
-        text = "...relaxin"
+        text = "...relaxin "+str(maxwh)+" "+str(fps)
         textcolor=(255, 0, 0)
-    elif maxwh>60000:
-        text = "Too large"
+    elif maxwh>=MMAXWH:
+        text = "Too large "+str(maxwh)+" "+str(fps)
         textcolor=(255, 0, 0)
         #alpha=0.01
         relax=2*fps
     else:
-        text = "Unoccupied"
+        text = "Unoccupied "+str(maxwh)+" "+str(fps)
         textcolor=(0, 255, 0)
         #alpha=0.03
 
     # draw the text and timestamp on the frame
     cv2.putText(frame, "{}".format(text), (10, 20),
            cv2.FONT_HERSHEY_SIMPLEX, 0.6, textcolor , 2)
-    cv2.putText(frame, datetime.datetime.now().strftime("%A %d %B %Y %I:%M:%S%p"),
+    locale.setlocale(locale.LC_ALL, "en_GB.UTF8") 
+    cv2.putText(frame, datetime.datetime.now().strftime("%A %d %B %Y %H:%M:%S"),
            (10, frame.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, textcolor, 1)
 
     if text.find('Occupied')>=0:
