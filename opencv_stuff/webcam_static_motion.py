@@ -14,10 +14,10 @@ import locale
 
 def load_source():
     '''
-    Read the stream source from ~/.webcam.source
+    Read the stream source from ~/.wmotion.source
     '''
     home = expanduser("~")
-    with open( home+'/.webcam.source') as f:
+    with open( home+'/.wmotion.source') as f:
         SRC=f.readlines()
     SRC=[x.rstrip() for x in SRC]  # rstrip lines
 #    if SRC[1].find('http'):        # if stream:::
@@ -31,7 +31,7 @@ def load_source():
 '''
 global stuff
  - stamp for directory
- - sources from .webcam.source file
+ - sources from .wmotion.source file
  - alpha - bg.relaxation
  - last_stamp ... to reduce disk usage
 '''
@@ -39,7 +39,7 @@ stampdest=datetime.datetime.now().strftime("%Y%m%d")
 DESTINATION=expanduser("~")+'/.motion/cam_'+stampdest+'/'
 if not os.path.exists(DESTINATION):
     os.makedirs(DESTINATION)
-SRC=load_source()  # load from  .webcam.source
+SRC=load_source()  # load from  .wmotion.source
 alpha=0.07  # running average
 last_stamp=""
 relax=0  # remove images after flash
