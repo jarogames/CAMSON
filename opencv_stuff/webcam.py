@@ -10,6 +10,7 @@ import numpy as np
 import subprocess
 import argparse
 import math
+import datetime
 
 parser=argparse.ArgumentParser(description="""
 webcam.py -s 1 ... number of streams to take
@@ -18,6 +19,8 @@ webcam.py -s 1 ... number of streams to take
 
 parser.add_argument('-s','--streams',  default=1,type=int , help='take one line from .webcam.source')
 parser.add_argument('-c','--cross',   action="store_true" , help='')
+parser.add_argument('-t','--timelapse',  default=99999999, type=int, help='')
+parser.add_argument('-p','--path_to_save',  default="./", help='')
 args=parser.parse_args() 
 
 
@@ -219,7 +222,11 @@ if xoff+s_img2.shape[1]>frame.shape[1]:
     xoff=10
 
 
+
+    
+starttime=datetime.datetime.now()
 while True:
+
     frames=[]
     for i in range(len(vclist)):
         if vclist[i]:
@@ -266,6 +273,10 @@ while True:
             
             
     width,height=frame.shape[1],frame.shape[0]
+    if (datetime.datetime.now()-starttime).seconds>args.timelapse:
+        cv2.imwrite( args.path_to_save+'/'+datetime.datetime.now().strftime("%Y%m%d_%H%M%S_webcampy.jpg"),frame )
+        print('s... image saved to', args.path_to_save )
+        starttime=datetime.datetime.now()
         
 #    print( "SIZE ", frame.shape[0],  frame.shape[1] )
     #print( width,height, xoff,yoff,s_img2.shape[1], s_img2.shape[0])
@@ -307,6 +318,8 @@ while True:
     frame2 = cv2.resize( frame ,None,fx= factor, fy= factor ,interpolation = cv2.INTER_CUBIC)
     cv2.imshow('Video', frame2)
 
+
+    
     key = cv2.waitKey(10)
     #print(key)
     if key==104: #H
