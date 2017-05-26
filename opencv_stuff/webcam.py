@@ -112,37 +112,67 @@ print( monitor )
 vclist=[]
 
 SRC=load_source()
-
+print( 'i... opennig',SRC[0] )
 vc =  cv2.VideoCapture( SRC[0]  )
+print( vc, vc.isOpened()  )
 if not vc.isOpened(): # try to get the first frame
     vc=None
+    print( '!... failed ',SRC[0] )
 vclist.append( vc )
 
 if args.streams>=2:
+    print( 'i... opennig',SRC[1] )
     vcb = cv2.VideoCapture( SRC[1] )
     if not vcb.isOpened(): # try to get the first frame
         vcb=None
+        print( '!... failed ',SRC[1] )
 else:
     vcb = None
 vclist.append( vcb )
 
 if args.streams>=3:
+    print( 'i... opennig',SRC[2] )
     vcc = cv2.VideoCapture( SRC[2] )
-    if not vcb.isOpened(): # try to get the first frame
+    if not vcc.isOpened(): # try to get the first frame
         vcc=None
+        print( '!... failed ',SRC[2] )
 else:
     vcc = None
 vclist.append( vcc )
 
 if args.streams>=4:
+    print( 'i... opennig',SRC[3] )
     vcd = cv2.VideoCapture( SRC[3] )
-    if not vcb.isOpened(): # try to get the first frame
+    if not vcd.isOpened(): # try to get the first frame
         vcd=None
+        print( '!... failed ',SRC[3] )
 else:
     vcd = None
 vclist.append( vcd )
 
-print( vclist )
+if args.streams>=5:
+    print( 'i... opennig',SRC[4] )
+    vcd = cv2.VideoCapture( SRC[4] )
+    if not vcd.isOpened(): # try to get the first frame
+        vcd=None
+        print( '!... failed ',SRC[4] )
+else:
+    vcd = None
+vclist.append( vcd )
+
+if args.streams>=6:
+    print( 'i... opennig',SRC[5] )
+    vcd = cv2.VideoCapture( SRC[5] )
+    if not vcd.isOpened(): # try to get the first frame
+        vcd=None
+        print( '!... failed ',SRC[5] )
+else:
+    vcd = None
+vclist.append( vcd )
+
+
+
+print('streams:', vclist )
     
 #vc.set( cv2.CAP_PROP_BUFFERSIZE, 1)
 #vc.set( cv2.CAP_PROP_FPS, 25)
@@ -171,6 +201,18 @@ else:
     print('!... no second cam')
 
 if vclist[3]:
+    rvalb, frameb = vcb.read()
+    frames.append( frameb )
+else:
+    print('!... no second cam')
+
+if vclist[4]:
+    rvalb, frameb = vcb.read()
+    frames.append( frameb )
+else:
+    print('!... no second cam')
+
+if vclist[5]:
     rvalb, frameb = vcb.read()
     frames.append( frameb )
 else:
