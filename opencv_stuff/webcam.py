@@ -87,7 +87,7 @@ if vc.isOpened(): # try to get the first frame
     rval, frame = vc.read()
 else:
     rval = False
-    print('!... no source',SRC[0])
+    print('!... no source, cannot open',SRC[0])
     quit()
 if vcb.isOpened(): # try to get the first frame
     rvalb, frameb = vcb.read()
