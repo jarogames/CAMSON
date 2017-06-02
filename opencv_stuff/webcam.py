@@ -18,7 +18,9 @@ webcam.py -s 1 ... number of streams to take
 
 
 parser.add_argument('-s','--streams',  default=1,type=int , help='take one line from .webcam.source')
-parser.add_argument('-c','--cross',   action="store_true" , help='')
+
+parser.add_argument('-c','--config', default='~/.webcam.source' , help='')
+parser.add_argument('-r','--cross',   action="store_true" , help='')
 parser.add_argument('-t','--timelapse',  default=99999999, type=int, help='')
 parser.add_argument('-p','--path_to_save',  default="./", help='')
 args=parser.parse_args() 
@@ -89,8 +91,10 @@ def load_source():
     '''
     Read the stream source from ~/.webcam.source
     '''
-    home = expanduser("~")
-    with open( home+'/.webcam.source') as f:
+    #home = expanduser("~")
+    home = expanduser( args.config )
+    with open( home ) as f:
+#    with open( home+'/.webcam.source') as f:
         SRC=f.readlines()
     SRC=[x.rstrip() for x in SRC]  # rstrip lines
 #    if SRC[1].find('http'):        # if stream:::
@@ -297,16 +301,13 @@ while True:
                 s_img2[:,:,c] * (s_img2[:,:,3]/255.0) +\
                 frame[yoff:yoff+s_img2.shape[0], xoff:xoff+s_img2.shape[1], c] * (1.0 - s_img2[:,:,3]/255.0)
 
+    #=======        
+    crop_img = frame[  yoff:yoff+s_img2.shape[0], xoff:xoff+s_img2.shape[1] ]
+    # I do crop everytime, because i owuld like to watch changes in zoom area
     # =========++ ZOOM ====================
     if zoom>0:
-        
-        crop_img = frame[  yoff:yoff+s_img2.shape[0], xoff:xoff+s_img2.shape[1] ]
-        #frame=crop_img
         frame2 = cv2.resize(crop_img,None,fx=zoom+1, fy=zoom+1 ,interpolation = cv2.INTER_CUBIC)
-#        cv2.imshow('Video', frame2)
         frame=frame2
-#    else:
-#        cv2.imshow('Video', frame)
 
     factor=monitor[1]/frame.shape[0]
     if factor>1.: factor=1.
