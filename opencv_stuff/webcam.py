@@ -22,6 +22,9 @@ webcam.py -s 1 ... number of streams to take
 parser.add_argument('-s','--streams',  default=1,type=int , help='take one line from .webcam.source')
 
 parser.add_argument('-c','--config', default='~/.webcam.source' , help='')
+
+parser.add_argument('-m','--motionmode', action="store_true", help='')
+
 parser.add_argument('-r','--cross',   action="store_true" , help='')
 parser.add_argument('-t','--timelapse',  default=99999999, type=int, help='')
 parser.add_argument('-p','--path_to_save',  default="./", help='')
@@ -304,23 +307,28 @@ while True:
                 s_img2[:,:,c] * (s_img2[:,:,3]/255.0) +\
                 frame[yoff:yoff+s_img2.shape[0], xoff:xoff+s_img2.shape[1], c] * (1.0 - s_img2[:,:,3]/255.0)
 
-    #=======        
-    crop_img = frame[  yoff:yoff+s_img2.shape[0], xoff:xoff+s_img2.shape[1] ]
-    mean=crop_img.mean()
-    if len(meanlist)<20:
-        meanlist.append( mean )
-        meanstd=1
-    else:
-        del meanlist[0]
-        meanlist.append( mean )
-        meanstd=3*statistics.stdev( meanlist )
-    meanmean=sum( meanlist) / len( meanlist )
-    #print( '                           M=',mean , len(meanlist) , meanmean , meanstd)
-    if ( abs(meanmean-mean)>meanstd):
-        #print('A...  ACTION ------------>')
-        cv2.imwrite( args.path_to_save+'/'+datetime.datetime.now().strftime("%Y%m%d_%H%M%S_webcampy.jpg"),frame )
-        print('A... image saved to', args.path_to_save ,datetime.datetime.now().strftime("%Y%m%d_%H%M%S") )
     # I do crop everytime, because i owuld like to watch changes in zoom area
+    crop_img = frame[  yoff:yoff+s_img2.shape[0], xoff:xoff+s_img2.shape[1] ]
+
+    if args.motionmode:
+        #=======        
+        mean=crop_img.mean()
+        if len(meanlist)<20:
+            meanlist.append( mean )
+            meanstd=1
+        else:
+            del meanlist[0]
+            meanlist.append( mean )
+            meanstd=3*statistics.stdev( meanlist )
+        meanmean=sum( meanlist) / len( meanlist )
+        #print( '                           M=',mean , len(meanlist) , meanmean , meanstd)
+        if ( abs(meanmean-mean)>meanstd):
+            #print('A...  ACTION ------------>')
+            cv2.imwrite( args.path_to_save+'/'+datetime.datetime.now().strftime("%Y%m%d_%H%M%S_webcampy.jpg"),frame )
+            print('A... image saved to', args.path_to_save ,datetime.datetime.now().strftime("%Y%m%d_%H%M%S") )
+        
+    
+    
     # =========++ ZOOM ====================
     if zoom>0:
         frame2 = cv2.resize(crop_img,None,fx=zoom+1, fy=zoom+1 ,interpolation = cv2.INTER_CUBIC)
