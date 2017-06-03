@@ -12,6 +12,8 @@ import argparse
 import math
 import datetime
 
+import statistics
+
 parser=argparse.ArgumentParser(description="""
 webcam.py -s 1 ... number of streams to take
 """)
@@ -229,6 +231,7 @@ if xoff+s_img2.shape[1]>frame.shape[1]:
 
     
 starttime=datetime.datetime.now()
+meanlist=[]
 while True:
 
     frames=[]
@@ -303,6 +306,20 @@ while True:
 
     #=======        
     crop_img = frame[  yoff:yoff+s_img2.shape[0], xoff:xoff+s_img2.shape[1] ]
+    mean=crop_img.mean()
+    if len(meanlist)<20:
+        meanlist.append( mean )
+        meanstd=1
+    else:
+        del meanlist[0]
+        meanlist.append( mean )
+        meanstd=3*statistics.stdev( meanlist )
+    meanmean=sum( meanlist) / len( meanlist )
+    #print( '                           M=',mean , len(meanlist) , meanmean , meanstd)
+    if ( abs(meanmean-mean)>meanstd):
+        #print('A...  ACTION ------------>')
+        cv2.imwrite( args.path_to_save+'/'+datetime.datetime.now().strftime("%Y%m%d_%H%M%S_webcampy.jpg"),frame )
+        print('A... image saved to', args.path_to_save ,datetime.datetime.now().strftime("%Y%m%d_%H%M%S") )
     # I do crop everytime, because i owuld like to watch changes in zoom area
     # =========++ ZOOM ====================
     if zoom>0:
