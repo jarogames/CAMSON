@@ -319,7 +319,7 @@ while True:
         else:
             del meanlist[0]
             meanlist.append( mean )
-            meanstd=3*statistics.stdev( meanlist )
+            meanstd=6*statistics.stdev( meanlist )
         meanmean=sum( meanlist) / len( meanlist )
         #print( '                           M=',mean , len(meanlist) , meanmean , meanstd)
         if ( abs(meanmean-mean)>meanstd):
