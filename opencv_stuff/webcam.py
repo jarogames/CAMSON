@@ -321,13 +321,18 @@ while True:
             meanlist.append( mean )
             meanstd=statistics.stdev( meanlist[0:10] )
         meanmean=sum( meanlist) / len( meanlist )
+
+        text="{:.1f}".format(abs(meanmean-mean)/meanstd)
+        textcolor=(255, 0, 0)
+
+        cv2.putText(frame, "{}".format(text), (xoff, yoff),
+           cv2.FONT_HERSHEY_SIMPLEX, 0.6, textcolor , 2)
         if abs(meanmean-mean)/meanstd>args.motionmode:
-            print( '                          {}  M={:.3f} +- {:.3f} ... {:.3f} {:.1f}'.format(len(meanlist),meanmean,meanstd,
-                                                                                           mean, abs(meanmean-mean)/meanstd ) )
-        if ( abs(meanmean-mean)> args.motionmode*meanstd):
-            #print('A...  ACTION ------------>')
+            print( '    {}  M={:.3f} +- {:.3f} ... {:.3f} {:.1f}'.format(len(meanlist),
+                                                                         meanmean,meanstd, mean, abs(meanmean-mean)/meanstd ) ,
+                   end='   ')
             cv2.imwrite( args.path_to_save+'/'+datetime.datetime.now().strftime("%Y%m%d_%H%M%S_webcampy.jpg"),frame )
-            print('A... image saved to', args.path_to_save ,datetime.datetime.now().strftime("%Y%m%d_%H%M%S") )
+            print( args.path_to_save+datetime.datetime.now().strftime("%Y%m%d_%H%M%S") )
         
     
     
