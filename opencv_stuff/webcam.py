@@ -321,7 +321,7 @@ while True:
             meanlist.append( mean )
             meanstd=6*statistics.stdev( meanlist )
         meanmean=sum( meanlist) / len( meanlist )
-        #print( '                           M=',mean , len(meanlist) , meanmean , meanstd)
+        print( '                           M=',mean , len(meanlist) , meanmean , meanstd)
         if ( abs(meanmean-mean)>meanstd):
             #print('A...  ACTION ------------>')
             cv2.imwrite( args.path_to_save+'/'+datetime.datetime.now().strftime("%Y%m%d_%H%M%S_webcampy.jpg"),frame )
