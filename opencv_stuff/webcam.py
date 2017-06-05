@@ -23,7 +23,7 @@ parser.add_argument('-s','--streams',  default=1,type=int , help='take one line 
 
 parser.add_argument('-c','--config', default='~/.webcam.source' , help='')
 
-parser.add_argument('-m','--motionmode', action="store_true", help='')
+parser.add_argument('-m','--motionmode', default=0, type=int, help='')
 
 parser.add_argument('-r','--cross',   action="store_true" , help='')
 parser.add_argument('-t','--timelapse',  default=99999999, type=int, help='')
@@ -310,7 +310,7 @@ while True:
     # I do crop everytime, because i owuld like to watch changes in zoom area
     crop_img = frame[  yoff:yoff+s_img2.shape[0], xoff:xoff+s_img2.shape[1] ]
 
-    if args.motionmode:
+    if args.motionmode!=0:
         #=======        
         mean=crop_img.mean()
         if len(meanlist)<20:
@@ -319,10 +319,12 @@ while True:
         else:
             del meanlist[0]
             meanlist.append( mean )
-            meanstd=6*statistics.stdev( meanlist )
+            meanstd=statistics.stdev( meanlist )
         meanmean=sum( meanlist) / len( meanlist )
-        print( '                           M=',mean , len(meanlist) , meanmean , meanstd)
-        if ( abs(meanmean-mean)>meanstd):
+        if abs(meanmean-mean)/meanstd>args.motionmode:
+            print( '                          {}  M={:.3f} +- {:.3f} ... {:.3f} {:.1f}'.format(len(meanlist),meanmean,meanstd,
+                                                                                           mean, abs(meanmean-mean)/meanstd ) )
+        if ( abs(meanmean-mean)> args.motionmode*meanstd):
             #print('A...  ACTION ------------>')
             cv2.imwrite( args.path_to_save+'/'+datetime.datetime.now().strftime("%Y%m%d_%H%M%S_webcampy.jpg"),frame )
             print('A... image saved to', args.path_to_save ,datetime.datetime.now().strftime("%Y%m%d_%H%M%S") )
