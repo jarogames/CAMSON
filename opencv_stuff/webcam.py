@@ -308,7 +308,7 @@ while True:
                 frame[yoff:yoff+s_img2.shape[0], xoff:xoff+s_img2.shape[1], c] * (1.0 - s_img2[:,:,3]/255.0)
 
     # I do crop everytime, because i owuld like to watch changes in zoom area
-    crop_img = frame[  yoff+1:yoff-1+s_img2.shape[0], xoff+1:xoff-1+s_img2.shape[1] ]
+    crop_img = frame[  yoff+2:yoff-2+s_img2.shape[0], xoff+2:xoff-2+s_img2.shape[1] ]
 
     if args.motionmode!=0:
         #=======        
