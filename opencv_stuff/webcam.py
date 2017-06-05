@@ -23,7 +23,7 @@ parser.add_argument('-s','--streams',  default=1,type=int , help='take one line 
 
 parser.add_argument('-c','--config', default='~/.webcam.source' , help='')
 
-parser.add_argument('-m','--motionmode', default=0, type=int, help='')
+parser.add_argument('-m','--motionmode', default=0, type=float, help='')
 
 parser.add_argument('-r','--cross',   action="store_true" , help='')
 parser.add_argument('-t','--timelapse',  default=99999999, type=int, help='')
