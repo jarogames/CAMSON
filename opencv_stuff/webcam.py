@@ -319,7 +319,7 @@ while True:
         else:
             del meanlist[0]
             meanlist.append( mean )
-            meanstd=statistics.stdev( meanlist )
+            meanstd=statistics.stdev( meanlist[0:10] )
         meanmean=sum( meanlist) / len( meanlist )
         if abs(meanmean-mean)/meanstd>args.motionmode:
             print( '                          {}  M={:.3f} +- {:.3f} ... {:.3f} {:.1f}'.format(len(meanlist),meanmean,meanstd,
