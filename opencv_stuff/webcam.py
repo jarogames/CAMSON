@@ -322,12 +322,15 @@ while True:
             meanstd=statistics.stdev( meanlist[0:10] )
         meanmean=sum( meanlist) / len( meanlist )
 
-        text="{:.1f}".format(abs(meanmean-mean)/meanstd)
-        textcolor=(255, 0, 0)
+        text="{:4.0f}".format(abs(meanmean-mean)/meanstd)
+        textcolor=(255, 0, 0) #blue
 
         cv2.putText(frame, "{}".format(text), (xoff, yoff),
            cv2.FONT_HERSHEY_SIMPLEX, 0.6, textcolor , 2)
         if abs(meanmean-mean)/meanstd>args.motionmode:
+            textcolor=(0,255,0)
+            cv2.putText(frame, "{}".format(text), (xoff, yoff),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, textcolor , 2)
             print( '    {}  M={:.3f} +- {:.3f} ... {:.3f} {:.1f}'.format(len(meanlist),
                                                                          meanmean,meanstd, mean, abs(meanmean-mean)/meanstd ) ,
                    end='   ')
