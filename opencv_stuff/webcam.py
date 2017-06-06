@@ -64,6 +64,8 @@ def restore_pos(x,y, w, h):
     return x,y, w,h
 
 
+
+
 def set_center(cross,image,x,y, dx,dy):
     """
     put cross to the x,y and asure that cross picture fits into the webcam.
@@ -187,11 +189,19 @@ else:
 
 #print('FRAMES:', frames)
 
-def create_cross():
+
+
+
+# restore_pos ... load  x,y,w,h
+# set_center ...  resizes cross ... returns img,4 numbers
+# 
+
+def create_cross( bcross ):  # if true = cross
     s_img =np.zeros((512,512,4), np.uint8)
+#    s_img =np.zeros(( wid,hei,4), np.uint8)
     #RECTANGLE
     #s_img = cv2.imread("cross.png", -1)
-    if args.cross:
+    if bcross:
         s_img=cv2.circle( s_img, (255,255),255, (0,255,0,128),2)
         s_img=cv2.circle( s_img, (255,255),128, (0,255,0,128),2)
         s_img=cv2.circle( s_img, (255,255),64, (0,255,0,128), 2)
@@ -205,7 +215,7 @@ def create_cross():
     else:
         return s_img
 
-s_img=create_cross()
+s_img=create_cross( args.cross )
 
 cross=1
 zoom=0
@@ -307,8 +317,15 @@ while True:
                 s_img2[:,:,c] * (s_img2[:,:,3]/255.0) +\
                 frame[yoff:yoff+s_img2.shape[0], xoff:xoff+s_img2.shape[1], c] * (1.0 - s_img2[:,:,3]/255.0)
 
+
+
+
+
+
+
+            
     # I do crop everytime, because i owuld like to watch changes in zoom area
-    crop_img = frame[  yoff+2:yoff-2+s_img2.shape[0], xoff+2:xoff-2+s_img2.shape[1] ]
+    crop_img = frame[  yoff:yoff+s_img2.shape[0], xoff:xoff+s_img2.shape[1] ]
 
     if args.motionmode!=0:
         #=======        
@@ -325,8 +342,7 @@ while True:
         text="{:7.1f}".format(abs(meanmean-mean)/meanstd)
         textcolor=(255, 0, 0) #blue
 
-        cv2.putText(frame, "{}".format(text), (xoff, yoff+15),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, textcolor , 2)
+        cv2.putText(frame, "{}".format(text), (xoff, yoff+16), cv2.FONT_HERSHEY_SIMPLEX, 0.6, textcolor , 2)
         if abs(meanmean-mean)/meanstd>args.motionmode:
             textcolor=(0,255,0) #green
             cv2.putText(frame, "{}".format(text), (xoff, yoff+15),
@@ -412,7 +428,7 @@ while True:
     if key == ord('\n'):
         print('reload')
         #s_img = cv2.imread("cross.png", -1)
-        s_img=create_cross( ) 
+        s_img=create_cross( args.cross ) 
         
         s_img2,xoff,yoff,aimx,aimy=set_center( s_img, frame, aimx,aimy,0,0)
     if key == ord('z'):
@@ -432,9 +448,19 @@ while True:
     if key == ord('q'):
         break
     if key == ord('a'):
-        #cross=1-cross
+        #cross=1-cross  color
         #for c in range(0,3):
         s_img2[:,:, 0],s_img2[:,:,1],s_img2[:,:, 2] = s_img2[:,:, 1],s_img2[:,:,2],s_img2[:,:, 0]
+
+    if key == ord('c'):
+        #cross=1-cross  color
+        s_img=create_cross( not(args.cross) )
+        print('cross')
+    if key == ord('C'):
+        #cross=1-cross  color
+        s_img=create_cross( (args.cross) )
+        print('CROSS')
+        
     if key!=255: ctrl=1
 
 cv2.destroyWindow("preview")
