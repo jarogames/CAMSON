@@ -66,21 +66,32 @@ def restore_pos(x,y, w, h):
 
 
 
+
+
+
 def set_center(cross,image,x,y, dx,dy):
+#def set_center(cross,image,x,y ):
     """
-    put cross to the x,y and asure that cross picture fits into the webcam.
+    returns a scaled picture of cross; offsets; coordinates (aimx,aimy); step
+    NOW returns a scaled picture of cross; coordinates (aimx,aimy); step
+    and asure that cross picture fits into the image
     Accepts:
     cross, frame,  aimx, aimy, dx, dy
     Returns:
     rescaled_image, xoff,yoff, aimx, aimy
     """
-    print("D... setting center to", x+dx,y+dy)
+    yoff=y+dy-int(cross.shape[0]/2)
+    xoff=x+dx-int(cross.shape[1]/2)
+    remainy=image.shape[0]-yoff-cross.shape[0]
+    remainx=image.shape[1]-xoff-cross.shape[1]
+    print("D... setting center to", x+dx,y+dy, 'projected remain:',remainy,remainx)
     wc,hc=cross.shape[1],cross.shape[0]
     wi,hi=image.shape[1],image.shape[0]
     # full size or nothing --- in case of danger
     if (x+dx>wi-10)or(y+dy>hi-10)or(x+dx<10)or(y+dy<10):
         print('!... some problem here - too close to frame')
-        return cross,x,y,x,y
+        return cross, x,y
+        #return cross, x,y, x,y
     bx=2*min( (wi-x-dx),x+dx ,wc)
     by=2*min( (hi-y-dy),y+dy ,hc)
     # --- one side gets smaller one bigger. Take only that smaller
@@ -91,7 +102,14 @@ def set_center(cross,image,x,y, dx,dy):
         by=by2
     #cross2=cv2.resize(image, (by-1, bx-1)  )
     cross=cv2.resize(cross, (bx-1, by-1) ,interpolation = cv2.INTER_CUBIC )
-    return cross, x+dx-int(bx/2), y+dy-int(by/2), x+dx,y+dy
+    return cross,  x+dx,y+dy
+#    return cross, x+dx-int(bx/2), y+dy-int(by/2), x+dx,y+dy
+
+
+
+
+
+
 
 
 def load_source():
@@ -110,6 +128,28 @@ def load_source():
     if len(SRC)==1:SRC.append('')  # append second
     print('i... webcam.source lines',SRC)
     return SRC
+
+
+
+
+def create_cross( bcross ):  # if true = cross
+    s_img =np.zeros((512,512,4), np.uint8)
+#    s_img =np.zeros(( wid,hei,4), np.uint8)
+    #RECTANGLE
+    #s_img = cv2.imread("cross.png", -1)
+    if bcross:
+        s_img=cv2.circle( s_img, (255,255),255, (0,255,0,128),2)
+        s_img=cv2.circle( s_img, (255,255),128, (0,255,0,128),2)
+        s_img=cv2.circle( s_img, (255,255),64, (0,255,0,128), 2)
+        s_img=cv2.line(s_img,(0,255),(511,255),(0,255,0,128), 2)
+        s_img=cv2.line(s_img,(255,0),(255,511),(0,255,0,128), 2)
+    else:
+        s_img=cv2.rectangle(s_img,(1,1),(510,510),(0,255,0,128),2 )
+    if s_img is None:
+        print('!... no cross')
+        quit()
+    else:
+        return s_img
 
 
 ######################
@@ -192,28 +232,8 @@ else:
 
 
 
-# restore_pos ... load  x,y,w,h
-# set_center ...  resizes cross ... returns img,4 numbers
 # 
 
-def create_cross( bcross ):  # if true = cross
-    s_img =np.zeros((512,512,4), np.uint8)
-#    s_img =np.zeros(( wid,hei,4), np.uint8)
-    #RECTANGLE
-    #s_img = cv2.imread("cross.png", -1)
-    if bcross:
-        s_img=cv2.circle( s_img, (255,255),255, (0,255,0,128),2)
-        s_img=cv2.circle( s_img, (255,255),128, (0,255,0,128),2)
-        s_img=cv2.circle( s_img, (255,255),64, (0,255,0,128), 2)
-        s_img=cv2.line(s_img,(0,255),(511,255),(0,255,0,128), 2)
-        s_img=cv2.line(s_img,(255,0),(255,511),(0,255,0,128), 2)
-    else:
-        s_img=cv2.rectangle(s_img,(1,1),(510,510),(0,255,0,128),2 )
-    if s_img is None:
-        print('!... no cross')
-        quit()
-    else:
-        return s_img
 
 s_img=create_cross( args.cross )
 
@@ -234,7 +254,7 @@ if s_img.shape[1]!=wc or s_img.shape[0]!=hc:
     print('restoring cross size to ',wc,hc)
     s_img=cv2.resize(s_img, (wc,hc)  ,interpolation = cv2.INTER_CUBIC )
 
-s_img2,xoff,yoff,aimx,aimy=set_center( s_img, frame, aimx,aimy ,0,0)
+s_img2,aimx,aimy=set_center( s_img, frame, aimx,aimy, 0,0 )
 if yoff+s_img2.shape[0]>frame.shape[0]:
     yoff=10
 if xoff+s_img2.shape[1]>frame.shape[1]:
@@ -245,6 +265,7 @@ if xoff+s_img2.shape[1]>frame.shape[1]:
     
 starttime=datetime.datetime.now()
 meanlist=[]
+#+========================= WHILE =======LOOP===================
 while True:
 
     frames=[]
@@ -293,6 +314,7 @@ while True:
             
             
     width,height=frame.shape[1],frame.shape[0]
+    #================ SAVE INTERVAL ==============================
     if (datetime.datetime.now()-starttime).seconds>args.timelapse:
         cv2.imwrite( args.path_to_save+'/'+datetime.datetime.now().strftime("%Y%m%d_%H%M%S_webcampy.jpg"),frame )
         print('s... image saved to', args.path_to_save )
@@ -311,11 +333,32 @@ while True:
     if xoff+s_img2.shape[1]>frame.shape[1]:
         xoff=20
         aimx,aimy=int(width/2),int(height/2)
-    if cross==1:
+
+
+        
+        
+    #===== PUT IMAGE ACROSS ==================
+    def overlay_image( s_img2 , aimy, aimx, frame ):
+        '''
+        this overlays the image s_img2 over the frame.  
+        def overlay_image( s_img2 , yoff,  xoff, frame ):
+        BUT why should I use offset?  isnt it better to have a center?
+        aimx aimy
+        '''
+        yoff=aimy-int(s_img2.shape[0]/2)
+        xoff=aimx-int(s_img2.shape[1]/2)
+        remainy=frame.shape[0]-yoff-s_img2.shape[0]
+        remainx=frame.shape[1]-xoff-s_img2.shape[1]
+        #print( 'D... remains',remainx, remainy)
+        if remainx<0 or remainy<0:
+            return frame
         for c in range(0,3):
             frame[yoff:yoff+s_img2.shape[0],xoff:xoff+s_img2.shape[1], c] =\
                 s_img2[:,:,c] * (s_img2[:,:,3]/255.0) +\
                 frame[yoff:yoff+s_img2.shape[0], xoff:xoff+s_img2.shape[1], c] * (1.0 - s_img2[:,:,3]/255.0)
+        return frame
+    if cross==1:
+        frame=overlay_image( s_img2 , aimy, aimx, frame )   # s_img2 over frame
 
 
 
@@ -324,9 +367,25 @@ while True:
 
 
             
-    # I do crop everytime, because i owuld like to watch changes in zoom area
-    crop_img = frame[  yoff:yoff+s_img2.shape[0], xoff:xoff+s_img2.shape[1] ]
+    #======================== CROP for zoom and mod ==================
+    def crop_image(  s_img2 , aimy, aimx, frame ):
+        '''
+        Crop image as zoom is defined - I do it for:
+        1/ be prepared for zoom
+        2/ watching changes is a subpicture
+        '''
+        yoff=aimy-int(s_img2.shape[0]/2)
+        xoff=aimx-int(s_img2.shape[1]/2)
+        remainy=frame.shape[0]-yoff-s_img2.shape[0]
+        remainx=frame.shape[1]-xoff-s_img2.shape[1]
+        if remainx<0 or remainy<0:
+            return frame
+        #print( 'D... crop remains',remainx, remainy)      
+        crop_img = frame[  yoff:yoff+s_img2.shape[0], xoff:xoff+s_img2.shape[1] ]
+        return crop_img
+    crop_img=crop_image(  s_img2 , aimy, aimx, frame )
 
+    
     if args.motionmode!=0:
         #=======        
         mean=crop_img.mean()
@@ -354,22 +413,6 @@ while True:
             print( args.path_to_save+datetime.datetime.now().strftime("%Y%m%d_%H%M%S") )
         
     
-    
-    # =========++ ZOOM ====================
-    if zoom>0:
-        frame2 = cv2.resize(crop_img,None,fx=zoom+1, fy=zoom+1 ,interpolation = cv2.INTER_CUBIC)
-        frame=frame2
-
-    factor=monitor[1]/frame.shape[0]
-    if factor>1.: factor=1.
-#    print("factor = ", factor, '',monitor[1],'',frame.shape[0])
-    if factor>monitor[0]/frame.shape[1]:
-        factor=monitor[0]/frame.shape[1]
-#        print("   factor = ", factor, '',monitor[0],'',frame.shape[1])
-    if factor>1.: factor=1.
-    frame2 = cv2.resize( frame ,None,fx= factor, fy= factor ,interpolation = cv2.INTER_CUBIC)
-    cv2.imshow('Video', frame2)
-
 
     
     key = cv2.waitKey(10)
@@ -406,16 +449,16 @@ while True:
 
     #================= arrows
     if key == 83:
-        s_img2,xoff,yoff,aimx,aimy=set_center( s_img, frame, aimx,aimy, 5*ctrl,0 )
+        s_img2,aimx,aimy=set_center( s_img, frame, aimx,aimy, 5*ctrl,0 )
         save_pos(aimx,aimy,s_img.shape[1],s_img.shape[0])
     if key == 81:
-        s_img2,xoff,yoff,aimx,aimy=set_center( s_img, frame, aimx,aimy,-5*ctrl,0)
+        s_img2,aimx,aimy=set_center( s_img, frame, aimx,aimy,-5*ctrl,0)
         save_pos(aimx,aimy,s_img.shape[1],s_img.shape[0])
     if key == 82:
-        s_img2,xoff,yoff,aimx,aimy=set_center( s_img, frame, aimx,aimy,0,-5*ctrl)
+        s_img2,aimx,aimy=set_center( s_img, frame, aimx,aimy,0,-5*ctrl)
         save_pos(aimx,aimy,s_img.shape[1],s_img.shape[0])
     if key == 84:
-        s_img2,xoff,yoff,aimx,aimy=set_center( s_img, frame, aimx,aimy,0,5*ctrl)
+        s_img2,aimx,aimy=set_center( s_img, frame, aimx,aimy,0,5*ctrl)
         save_pos(aimx,aimy,s_img.shape[1],s_img.shape[0])
     #==================zoom
     if key == ord(' '):
@@ -423,14 +466,14 @@ while True:
         w,h= s_img.shape[1],s_img.shape[0]
         s_img = cv2.resize(s_img, ( int(w*0.9), int(h*0.9) ),interpolation = cv2.INTER_CUBIC)
         print('new focus',s_img.shape[1],s_img.shape[0], 'center',aimx,aimy )
-        s_img2,xoff,yoff,aimx,aimy=set_center( s_img, frame, aimx,aimy,0,0)
+        s_img2,aimx,aimy=set_center( s_img, frame, aimx,aimy,0,0)
         save_pos(aimx,aimy,s_img.shape[1],s_img.shape[0])
     if key == ord('\n'):
         print('reload')
         #s_img = cv2.imread("cross.png", -1)
         s_img=create_cross( args.cross ) 
         
-        s_img2,xoff,yoff,aimx,aimy=set_center( s_img, frame, aimx,aimy,0,0)
+        s_img2,aimx,aimy=set_center( s_img, frame, aimx,aimy,0,0)
     if key == ord('z'):
         if zoom==0:
             zoom=1
@@ -455,13 +498,39 @@ while True:
     if key == ord('c'):
         #cross=1-cross  color
         s_img=create_cross( not(args.cross) )
-        print('cross')
+        s_img2,aimx,aimy=set_center( s_img, frame, aimx,aimy,0,0)
+        print('cross/CROSS')
     if key == ord('C'):
         #cross=1-cross  color
         s_img=create_cross( (args.cross) )
-        print('CROSS')
+        s_img2,aimx,aimy=set_center( s_img, frame, aimx,aimy,0,0)
+        print('CROSS/cross')
         
     if key!=255: ctrl=1
+
+
+
+
+        
+    # =========++ ZOOM ===and DISPLAY
+    if zoom>0:
+        frame2 = cv2.resize(crop_img,None,fx=zoom+1, fy=zoom+1 ,interpolation = cv2.INTER_CUBIC)
+        frame=frame2
+
+    factor=monitor[1]/frame.shape[0]
+    if factor>1.: factor=1.
+#    print("factor = ", factor, '',monitor[1],'',frame.shape[0])
+    if factor>monitor[0]/frame.shape[1]:
+        factor=monitor[0]/frame.shape[1]
+#        print("   factor = ", factor, '',monitor[0],'',frame.shape[1])
+    if factor>1.: factor=1.
+    frame2 = cv2.resize( frame ,None,fx= factor, fy= factor ,interpolation = cv2.INTER_CUBIC)
+    cv2.imshow('Video', frame2)
+
+
+
+
+    
 
 cv2.destroyWindow("preview")
 
