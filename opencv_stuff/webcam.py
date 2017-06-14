@@ -104,7 +104,7 @@ def set_center(cross,image,x,y, dx,dy):
     else:
         by=by2
     #cross2=cv2.resize(image, (by-1, bx-1)  )
-    cross=cv2.resize(cross, (bx-1, by-1) ,interpolation = cv2.INTER_CUBIC )
+    cross=cv2.resize(cross, (bx, by) ,interpolation = cv2.INTER_CUBIC )
     return cross,  x+dx,y+dy 
 #    return cross, x+dx-int(bx/2), y+dy-int(by/2), x+dx,y+dy
 
