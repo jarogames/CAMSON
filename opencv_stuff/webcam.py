@@ -46,9 +46,10 @@ def save_pos(x,y, w, h):
     """
     Save position of the cross into ~/.webcam.position
     """
+    print('s... saving', x,y,  w,h )
     home = expanduser("~")
     with open(home+'/.webcam.position', 'wb') as f: 
-        pickle.dump([x,y,  w,h], f)
+        pickle.dump( [x,y,  w,h], f)
 
 def restore_pos(x,y, w, h):
     """
@@ -61,6 +62,7 @@ def restore_pos(x,y, w, h):
         with open( fname , 'rb') as f: 
             x,y,w,h=pickle.load( f)
             print('i... restored',x,y,w,h)
+    print('r... restoring', x,y,  w,h )
     return x,y, w,h
 
 
@@ -145,7 +147,7 @@ def create_cross( bcross ):  # if true = cross
         s_img=cv2.line(s_img,(0,255),(511,255),(0,255,0,128), 2)
         s_img=cv2.line(s_img,(255,0),(255,511),(0,255,0,128), 2)
     else:
-        s_img=cv2.rectangle(s_img,(1,1),(510,510),(0,255,0,128),2 )
+        s_img=cv2.rectangle(s_img,(1,1),(510,510),(0,255,0,128), 3 )
     if s_img is None:
         print('!... no cross')
         quit()
@@ -275,8 +277,10 @@ When I restore the position, I must also resize the original cross.
 """
 aimx,aimy,wc,hc=restore_pos( aimx,aimy, s_img.shape[1],  s_img.shape[0]  )
 if s_img.shape[1]!=wc or s_img.shape[0]!=hc:
-    print('restoring cross size to ',wc,hc)
-    s_img=cv2.resize(s_img, (wc,hc)  ,interpolation = cv2.INTER_CUBIC )
+    print('a...  resizing after restore -  cross size to ',wc,hc)
+    s_img2=cv2.resize(s_img, (wc,hc)  ,interpolation = cv2.INTER_CUBIC )
+    s_img=s_img2  # THIS SAVED restore!!
+    
 
 s_img2,aimx,aimy=set_center( s_img, frame, aimx,aimy, 0,0 )
 if yoff+s_img2.shape[0]>frame.shape[0]:
@@ -483,27 +487,26 @@ while True:
 
     #================= arrows
     if key == 83:
-        s_img2,aimx,aimy=set_center( s_img, frame, aimx,aimy, 5*ctrl,0 )
-        save_pos(aimx,aimy,s_img.shape[1],s_img.shape[0])
+        s_img2,aimx,aimy=set_center( s_img2, frame, aimx,aimy, 5*ctrl,0 )
+        save_pos(aimx,aimy,s_img2.shape[1],s_img2.shape[0])
     if key == 81:
-        s_img2,aimx,aimy=set_center( s_img, frame, aimx,aimy,-5*ctrl,0)
-        save_pos(aimx,aimy,s_img.shape[1],s_img.shape[0])
+        s_img2,aimx,aimy=set_center( s_img2, frame, aimx,aimy,-5*ctrl,0)
+        save_pos(aimx,aimy,s_img2.shape[1],s_img2.shape[0])
     if key == 82:
-        s_img2,aimx,aimy=set_center( s_img, frame, aimx,aimy,0,-5*ctrl)
-        save_pos(aimx,aimy,s_img.shape[1],s_img.shape[0])
+        s_img2,aimx,aimy=set_center( s_img2, frame, aimx,aimy,0,-5*ctrl)
+        save_pos(aimx,aimy,s_img2.shape[1],s_img2.shape[0])
     if key == 84:
-        s_img2,aimx,aimy=set_center( s_img, frame, aimx,aimy,0,5*ctrl)
-        save_pos(aimx,aimy,s_img.shape[1],s_img.shape[0])
+        s_img2,aimx,aimy=set_center( s_img2, frame, aimx,aimy,0,5*ctrl)
+        save_pos(aimx,aimy,s_img2.shape[1],s_img2.shape[0])
     #==================zoom
     if key == ord(' '):
         # - I set the propoer cross size here
-        w,h= s_img.shape[1],s_img.shape[0]
-        s_img = cv2.resize(s_img, ( int(w*0.9), int(h*0.9) ),interpolation = cv2.INTER_CUBIC)
-        print('new focus',s_img.shape[1],s_img.shape[0], 'center',aimx,aimy )
-        s_img2,aimx,aimy=set_center( s_img, frame, aimx,aimy,0,0)
-        s_img=s_img2 # WITH this-I dont have to make many SPACEPRESS after ENTER
+        w,h= s_img2.shape[1],s_img2.shape[0]
+        s_img2 = cv2.resize(s_img, ( int(w*0.9), int(h*0.9) ),interpolation = cv2.INTER_CUBIC)
+        print('new focus',s_img2.shape[1],s_img2.shape[0], 'center',aimx,aimy )
+        s_img2,aimx,aimy=set_center( s_img2, frame, aimx,aimy,0,0)
 
-        save_pos(aimx,aimy,s_img.shape[1],s_img.shape[0])
+        save_pos(aimx,aimy,s_img2.shape[1],s_img2.shape[0])
         
     if key == ord('\n'):
         print('reload')
@@ -567,13 +570,17 @@ while True:
 
 
     if len(refPt) == 2:
-        refw=refPt[1][0]-refPt[0][0]
-        refh=refPt[1][1]-refPt[0][1]
+        refw=max( abs(refPt[1][0]-refPt[0][0]), 60 )
+        refh=max( abs(refPt[1][1]-refPt[0][1]), 60 )
         aimx=int((refPt[1][0]+refPt[0][0])/2)
         aimy=int((refPt[1][1]+refPt[0][1])/2)
-        s_img= cv2.resize(s_img2, None, fx=refw/s_img2.shape[0],fy=refh/s_img2.shape[1] ,interpolation = cv2.INTER_CUBIC )
-        s_img2=s_img
+        print('M...',refw,refh,'@',aimx,aimy)
+        s_img=create_cross( args.cross ) 
+        s_img2= cv2.resize(s_img, None, fx=refw/s_img.shape[0],fy=refh/s_img.shape[1] ,interpolation = cv2.INTER_CUBIC )
+        #s_img2=s_img
         refPt=[]
+        save_pos(aimx,aimy,s_img2.shape[1],s_img2.shape[0])
+
     
 
 #cv2.destroyWindow("preview")
