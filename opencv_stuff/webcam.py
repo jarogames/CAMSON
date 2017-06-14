@@ -78,13 +78,14 @@ def set_center(cross,image,x,y, dx,dy):
     Accepts:
     cross, frame,  aimx, aimy, dx, dy
     Returns:
-    rescaled_image, xoff,yoff, aimx, aimy
+    not   rescaled_image, xoff,yoff, aimx, aimy
+    rescaled_image,  aimx, aimy
     """
     yoff=y+dy-int(cross.shape[0]/2)
     xoff=x+dx-int(cross.shape[1]/2)
     remainy=image.shape[0]-yoff-cross.shape[0]
     remainx=image.shape[1]-xoff-cross.shape[1]
-    print("D... setting center to", x+dx,y+dy, 'projected remain:',remainy,remainx)
+    print("D... setting center to", x+dx,y+dy, 'projected remain:',remainy,remainx,' offs:',yoff,xoff)
     wc,hc=cross.shape[1],cross.shape[0]
     wi,hi=image.shape[1],image.shape[0]
     # full size or nothing --- in case of danger
@@ -92,8 +93,8 @@ def set_center(cross,image,x,y, dx,dy):
         print('!... some problem here - too close to frame')
         return cross, x,y
         #return cross, x,y, x,y
-    bx=2*min( (wi-x-dx),x+dx ,wc)
-    by=2*min( (hi-y-dy),y+dy ,hc)
+    bx=min( (wi-x-dx)*2, ((x+dx)-0)*2, wc)
+    by=min( (hi-y-dy)*2, ((y+dy)-0)*2, hc)
     # --- one side gets smaller one bigger. Take only that smaller
     by2=int(hc/wc * bx)
     if by2>by:
@@ -102,7 +103,7 @@ def set_center(cross,image,x,y, dx,dy):
         by=by2
     #cross2=cv2.resize(image, (by-1, bx-1)  )
     cross=cv2.resize(cross, (bx-1, by-1) ,interpolation = cv2.INTER_CUBIC )
-    return cross,  x+dx,y+dy
+    return cross,  x+dx,y+dy 
 #    return cross, x+dx-int(bx/2), y+dy-int(by/2), x+dx,y+dy
 
 
@@ -152,6 +153,31 @@ def create_cross( bcross ):  # if true = cross
         return s_img
 
 
+
+
+refPt=[]
+cropping=False
+def click_and_crop(event, x, y, flags, param):
+    # grab references to the global variables
+    global refPt
+    
+    # if the left mouse button was clicked, record the starting
+    # (x, y) coordinates and indicate that cropping is being
+    # performed
+    if event == cv2.EVENT_LBUTTONDOWN:
+        refPt = [(x, y)]
+        print( (x,y))
+        cropping=True
+        # check to see if the left mouse button was released
+    elif event == cv2.EVENT_LBUTTONUP:
+        # record the ending (x, y) coordinates and indicate that
+        # the cropping operation is finished
+        refPt.append((x, y))
+        cropping = False
+        print( (x,y))
+        #cv2.rectangle( frame , refPt[0], refPt[1], (0, 255, 0), 2)
+        #cv2.imshow("Video", frame)
+    
 ######################
 #
 #           MAIN ==================
@@ -230,9 +256,7 @@ else:
 #print('FRAMES:', frames)
 
 
-
-
-# 
+ 
 
 
 s_img=create_cross( args.cross )
@@ -261,6 +285,10 @@ if xoff+s_img2.shape[1]>frame.shape[1]:
     xoff=10
 
 
+
+
+cv2.namedWindow("Video")
+cv2.setMouseCallback("Video", click_and_crop)
 
     
 starttime=datetime.datetime.now()
@@ -327,6 +355,8 @@ while True:
 ####    if vcb.isOpened():
 #        retb, frameb = vcb.read()
 #        frame = np.concatenate(( frameb, frame), axis=1)
+
+
     if yoff+s_img2.shape[0]>frame.shape[0]:
         yoff=20
         aimx,aimy=int(width/2),int(height/2)
@@ -357,6 +387,8 @@ while True:
                 s_img2[:,:,c] * (s_img2[:,:,3]/255.0) +\
                 frame[yoff:yoff+s_img2.shape[0], xoff:xoff+s_img2.shape[1], c] * (1.0 - s_img2[:,:,3]/255.0)
         return frame
+
+    
     if cross==1:
         frame=overlay_image( s_img2 , aimy, aimx, frame )   # s_img2 over frame
 
@@ -383,6 +415,8 @@ while True:
         #print( 'D... crop remains',remainx, remainy)      
         crop_img = frame[  yoff:yoff+s_img2.shape[0], xoff:xoff+s_img2.shape[1] ]
         return crop_img
+
+    
     crop_img=crop_image(  s_img2 , aimy, aimx, frame )
 
     
@@ -467,7 +501,10 @@ while True:
         s_img = cv2.resize(s_img, ( int(w*0.9), int(h*0.9) ),interpolation = cv2.INTER_CUBIC)
         print('new focus',s_img.shape[1],s_img.shape[0], 'center',aimx,aimy )
         s_img2,aimx,aimy=set_center( s_img, frame, aimx,aimy,0,0)
+        s_img=s_img2 # WITH this-I dont have to make many SPACEPRESS after ENTER
+
         save_pos(aimx,aimy,s_img.shape[1],s_img.shape[0])
+        
     if key == ord('\n'):
         print('reload')
         #s_img = cv2.imread("cross.png", -1)
@@ -529,10 +566,17 @@ while True:
 
 
 
-
+    if len(refPt) == 2:
+        refw=refPt[1][0]-refPt[0][0]
+        refh=refPt[1][1]-refPt[0][1]
+        aimx=int((refPt[1][0]+refPt[0][0])/2)
+        aimy=int((refPt[1][1]+refPt[0][1])/2)
+        s_img= cv2.resize(s_img2, None, fx=refw/s_img2.shape[0],fy=refh/s_img2.shape[1] ,interpolation = cv2.INTER_CUBIC )
+        s_img2=s_img
+        refPt=[]
     
 
-cv2.destroyWindow("preview")
+#cv2.destroyWindow("preview")
 
 
 
