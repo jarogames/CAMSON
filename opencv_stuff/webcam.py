@@ -191,6 +191,9 @@ print( monitor )
 vclist=[]
 
 SRC=load_source()
+if args.streams>len(SRC):
+    print('!... more sources requested than availabe')
+    quit()
 
 vc =  cv2.VideoCapture( SRC[0]  )
 if not vc.isOpened(): # try to get the first frame
@@ -201,64 +204,74 @@ if args.streams>=2:
     vcb = cv2.VideoCapture( SRC[1] )
     if not vcb.isOpened(): # try to get the first frame
         vcb=None
-else:
-    vcb = None
-vclist.append( vcb )
+    vclist.append( vcb )
+#else:
+#    vcb = None
+    #vclist.append( vcb )
 
 if args.streams>=3:
     vcc = cv2.VideoCapture( SRC[2] )
-    if not vcb.isOpened(): # try to get the first frame
+    if not vcc.isOpened(): # try to get the first frame
         vcc=None
-else:
-    vcc = None
-vclist.append( vcc )
+    vclist.append( vcc )
+
+#else:
+#    vcc = None
+    #vclist.append( vcc )
 
 if args.streams>=4:
     vcd = cv2.VideoCapture( SRC[3] )
-    if not vcb.isOpened(): # try to get the first frame
+    if not vcd.isOpened(): # try to get the first frame
         vcd=None
-else:
-    vcd = None
-vclist.append( vcd )
+    vclist.append( vcd )
+#else:
+#    vcd = None
+    #vclist.append( vcd )
 
-print( vclist )
-    
+print( 'i... vclist:', vclist )
+
+
 #vc.set( cv2.CAP_PROP_BUFFERSIZE, 1)
 #vc.set( cv2.CAP_PROP_FPS, 25)
 #if vc.isOpened(): # try to get the first frame
 
+##########################################
+
 frames=[]
-if vclist[0]:
+if vclist[0] is None:
+    frame=None
+else:
     rval, frame = vc.read()
-    frames.append( frame )
-else:
-    rval = False
-    print('!... no source',SRC[0])
-    quit()
+frames.append( frame )
 
+    
 #if not vcb is None:
-if vclist[1]:
-    rvalb, frameb = vcb.read()
+if args.streams>=2:
+    if vclist[1] is None:
+        frameb=None
+    else:
+        rvalb, frameb = vclist[1].read()
     frames.append( frameb )
-else:
-    print('!... no second cam')
 
-if vclist[2]:
-    rvalb, frameb = vcb.read()
+    
+if args.streams>=3:
+    if vclist[2] is None:
+        frameb=None
+    else:
+        rvalb, frameb = vclist[2].read()
     frames.append( frameb )
-else:
-    print('!... no second cam')
 
-if vclist[3]:
-    rvalb, frameb = vcb.read()
+if args.streams>=4:
+    if vclist[3] is None:
+        frameb=None
+    else:
+        rvalb, frameb = vclist[3].read()
     frames.append( frameb )
-else:
-    print('!... no second cam')
 
-#print('FRAMES:', frames)
+print('FRAMES number :', len(frames) )
 
 
- 
+ ##########################################
 
 
 s_img=create_cross( args.cross )
@@ -266,7 +279,14 @@ s_img=create_cross( args.cross )
 cross=1
 zoom=0
 xoff=yoff=0
-width,height=frame.shape[1],frame.shape[0]
+width,height=100,100
+for i in frames:
+    if i is None:
+        print('next... of', len(frames))
+    else:
+        width,height=i.shape[1],i.shape[0]
+        break
+    
 width1p,height1p=width,height
 print('ONE FRAME',width,height)
 aimx,aimy=int(width/2),int(height/2)
@@ -282,11 +302,11 @@ if s_img.shape[1]!=wc or s_img.shape[0]!=hc:
     s_img=s_img2  # THIS SAVED restore!!
     
 
-s_img2,aimx,aimy=set_center( s_img, frame, aimx,aimy, 0,0 )
-if yoff+s_img2.shape[0]>frame.shape[0]:
-    yoff=10
-if xoff+s_img2.shape[1]>frame.shape[1]:
-    xoff=10
+#s_img2,aimx,aimy=set_center( s_img, frame, aimx,aimy, 0,0 )
+#if yoff+s_img2.shape[0]>frame.shape[0]:
+#    yoff=10
+#if xoff+s_img2.shape[1]>frame.shape[1]:
+#    xoff=10
 
 
 
@@ -301,18 +321,20 @@ meanlist=[]
 while True:
 
     frames=[]
+    img_black=np.zeros( (height1p,width1p,3),dtype=np.uint8)
+    img_black=img_black+ 123
     for i in range(len(vclist)):
         if vclist[i]:
             ret,framex=vclist[i].read()
             frames.append( framex )
-            #print("appending frame")
-    #####frame=frames[-1]
+            ###print("appending frame")
+        else:
+            frames.append( img_black )
+            #####frame=frames[-1]
     frame=frames[0]
     # if 2 images:line
     #    3,4   : 2x2
     #    5,6   : 3x2
-    img_black = np.zeros( (height1p,width1p, 3 ) , dtype=np.uint8   )
-    img_black=img_black+ 123
     #    print( img_black.shape, frame.shape )
     
 #    img_black = np.zeros( (height1p,height1p,1) , np.int8)
