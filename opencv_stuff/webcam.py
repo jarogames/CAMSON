@@ -14,6 +14,7 @@ import datetime
 
 import statistics
 
+import random #  gray colors
 parser=argparse.ArgumentParser(description="""
 webcam.py -s 1 ... number of streams to take
 """)
@@ -279,7 +280,7 @@ s_img=create_cross( args.cross )
 cross=1
 zoom=0
 xoff=yoff=0
-width,height=100,100
+width,height=640,480   # DEFAULT SIZE
 for i in frames:
     if i is None:
         print('next... of', len(frames))
@@ -318,11 +319,11 @@ cv2.setMouseCallback("Video", click_and_crop)
 starttime=datetime.datetime.now()
 meanlist=[]
 #+========================= WHILE =======LOOP===================
+img_black=np.zeros( (height1p,width1p,3),dtype=np.uint8)
+img_black=img_black+ random.randint(20,180)
 while True:
 
     frames=[]
-    img_black=np.zeros( (height1p,width1p,3),dtype=np.uint8)
-    img_black=img_black+ 123
     for i in range(len(vclist)):
         if vclist[i]:
             ret,framex=vclist[i].read()
@@ -383,10 +384,10 @@ while True:
 #        frame = np.concatenate(( frameb, frame), axis=1)
 
 
-    if yoff+s_img2.shape[0]>frame.shape[0]:
+    if yoff+s_img.shape[0]>frame.shape[0]:
         yoff=20
         aimx,aimy=int(width/2),int(height/2)
-    if xoff+s_img2.shape[1]>frame.shape[1]:
+    if xoff+s_img.shape[1]>frame.shape[1]:
         xoff=20
         aimx,aimy=int(width/2),int(height/2)
 
@@ -416,7 +417,7 @@ while True:
 
     
     if cross==1:
-        frame=overlay_image( s_img2 , aimy, aimx, frame )   # s_img2 over frame
+        frame=overlay_image( s_img , aimy, aimx, frame )   # s_img2 over frame
 
 
 
@@ -443,7 +444,7 @@ while True:
         return crop_img
 
     
-    crop_img=crop_image(  s_img2 , aimy, aimx, frame )
+    crop_img=crop_image(  s_img , aimy, aimx, frame )
 
     
     if args.motionmode!=0:
