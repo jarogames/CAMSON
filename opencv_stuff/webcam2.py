@@ -16,6 +16,10 @@ from logzero import setup_logger,LogFormatter,colors
 import sys
 import collections  # ordered dict for  vcframes
 import threading # reconnect
+
+
+
+
 ####################################
 # PARSER ARG
 ######################################
@@ -104,6 +108,8 @@ def get_list_of_sources( argum ):
 ###############################################
 refPt=[]#
 cropping=False
+aimx,aimy=0,0
+
 def click_and_crop(event, x, y, flags, param):
     # grab references to the global variables
     global refPt, cropping, aimx,aimy
@@ -126,7 +132,7 @@ def click_and_crop(event, x, y, flags, param):
         #print( (x,y))
         #cv2.rectangle( frame , refPt[0], refPt[1], (0, 255, 0), 2)
         #cv2.imshow("Video", frame)
-    #aimx,aimy=x,y
+        aimx,aimy=int((refPt[0][0]+refPt[1][0])/2), int((refPt[1][0]+refPt[1][1])/2)
     
 ####################################################
 #  PUT IMAGES TOGETHER
@@ -178,11 +184,14 @@ def construct_main_frame( frames ):
     return frame
 
 
-
+#################################
+#  Create cross  rectangle
+##################################
 
 img_cross=np.zeros((512,512,4), np.uint8)
 def create_cross( ):  # if true = cross
     global img_cross
+    img_cross=np.zeros((512,512,4), np.uint8)
     img_cross=cv2.circle( img_cross, (255,255),255, (0,255,0,128),2)
     img_cross=cv2.circle( img_cross, (255,255),128, (0,255,0,128),2)
     img_cross=cv2.circle( img_cross, (255,255),64, (0,255,0,128), 2)
@@ -197,7 +206,9 @@ def create_rectangle( ):  # if true = cross
     img_cross=cv2.rectangle(img_cross,(1,1),(510,510),(0,255,0,128), 3 )
     img_cross=cv2.rectangle(img_cross,(254,254),(256,256),(0,255,0,128), 3 )
     return img_cross
-    
+
+
+
 def crop_image(  s_img2 , aimy, aimx, frame ):
     '''
     Crop image as zoom is defined - I do it for:
@@ -218,7 +229,7 @@ def crop_image(  s_img2 , aimy, aimx, frame ):
 
 
 #===== PUT IMAGE ACROSS ==================
-def overlay_image( s_img2 , aimy, aimx, frame1 ,neww=512, newh=512):
+def overlay_image( s_img2 , aimy1, aimx1, frame1 ,neww=512, newh=512):
     '''
     this overlays the image s_img2 over the frame1.  
     def overlay_image( s_img2 , yoff,  xoff, frame1 ):
@@ -226,18 +237,18 @@ def overlay_image( s_img2 , aimy, aimx, frame1 ,neww=512, newh=512):
     aimx aimy
     '''
     # new approach: see how much is to the borders
-    minx=min(aimx,frame1.shape[1]-aimx)
-    miny=min(aimy,frame1.shape[0]-aimy)
+    minx=min(aimx1,frame1.shape[1]-aimx1)
+    miny=min(aimy1,frame1.shape[0]-aimy1)
     minxy=min(minx,miny)
-    logger.debug( "OVeRLay image:MIN: x= {}   y= {}  ... {}".format(minx,miny,minxy) )
+    logger.debug( "  OVeRLay image:MIN: x= {}   y= {}  ... {}".format(minx,miny,minxy) )
     if minxy<neww/2 and minxy<newh/2:
         s_img2a=cv2.resize(s_img2, ( minxy,minxy ),interpolation = cv2.INTER_CUBIC)
     else:
         s_img2a=cv2.resize(s_img2, ( neww,newh ),interpolation = cv2.INTER_CUBIC)
     #
-    yoff=aimy-int(s_img2a.shape[0]/2)
-    xoff=aimx-int(s_img2a.shape[1]/2)
-    logger.debug("overlay_image @ ({},{}); offs: +{}+{}".format(aimx,aimy,yoff,xoff)  )
+    yoff=aimy1-int(s_img2a.shape[0]/2)
+    xoff=aimx1-int(s_img2a.shape[1]/2)
+    logger.debug("  overlay_image @ ({},{}); offs: +{}+{}".format(aimx1,aimy1,yoff,xoff)  )
     #remy=frame1.shape[0]-yoff-s_img2.shape[0]
     #remx=frame1.shape[1]-xoff-s_img2.shape[1]
     #logger.debug("overlay_image @ {} {}; rems: +{}+{}".format(aimx,aimy,remy,remx)  )
@@ -259,12 +270,12 @@ def overlay_image( s_img2 , aimy, aimx, frame1 ,neww=512, newh=512):
 # RE-ASSIGN 
 def worker( num ): # REASSIGN CV IN CASE OF TCP PROBLEMS
     global vclist
-    logger.info("trying to re-assign {}".format(num) )
+    logger.info("  trying to re-assign {}".format(num) )
     vc=cv2.VideoCapture( SRC[num]  )
     if not vc.isOpened():
         vc=None
     else:
-        logger.info("Reconnected ! ".format(SRC[num]) )
+        logger.info("  Reconnected ! ".format(SRC[num]) )
         vclist[num]=vc
 
 ####################################################
@@ -273,7 +284,7 @@ def worker( num ): # REASSIGN CV IN CASE OF TCP PROBLEMS
 #
 ##############################
 monitor=monitor_size()
-logger.info('Monitor '+str(monitor) )
+logger.info('  Monitor '+str(monitor) )
 #print( monitor )
 vclist=[]
 
@@ -388,15 +399,23 @@ while True:
     if len(refPt) == 2:  #  mouse click
         refw=max( abs(refPt[1][0]-refPt[0][0]), 60 )
         refh=max( abs(refPt[1][1]-refPt[0][1]), 60 )
+        
         aimx=int((refPt[1][0]+refPt[0][0])/2)
         aimy=int((refPt[1][1]+refPt[0][1])/2)
+        
+        refPt=[]
         logger.debug("ClickDetected: @({},{})  {} x {}".format(aimx,aimy,refw,refh) )
         # I resize CROSS HERE !
         frame,refw,refh=overlay_image( img_cross , aimy, aimx, frame , neww=refw, newh=refh)
+        if args.cross:
+            img_cross=create_cross()
+        else:
+            img_cross=create_rectangle()
         img_cross=cv2.resize( img_cross, (refw,refh) , interpolation=cv2.INTER_CUBIC  )
     else:
         if args.cross:
-            frame,refw,refh=overlay_image( img_cross , aimy, aimx, frame )
+            logger.debug("Overlay CROSS  aim={},{}".format(aimy,aimx) )
+            frame,refw,refh=overlay_image( img_cross , aimy, aimx,  frame )
             img_cross=cv2.resize( img_cross, (refw,refh) , interpolation=cv2.INTER_CUBIC  )
 
 
@@ -439,5 +458,23 @@ while True:
             args.zoom=2
         else:
             args.zoom=0
+    #---> arrows  CTRL can be read by key==227 and cv2.waitKey(1)
+    if key == 83 or key==108: #L
+        aimx=aimx+5
+        logger.debug("+{}x".format(aimx) )
+    if key == 81 or key==104: #H
+        aimx=aimx-5
+        logger.debug("-{}x".format(aimx) )
+    if key == 82 or key==106: #J
+        logger.debug("+{}y".format(aimx) )
+        aimy=aimy+5
+    if key == 84 or key==107: #K
+        logger.debug("-{}y".format(aimx) )
+        aimy=aimy-5
             ########
 ################################ END OF INFINITE LOOP ##################
+
+
+
+# WRITE TEXT
+# MOTION TEST
