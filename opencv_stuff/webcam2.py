@@ -433,6 +433,12 @@ while True:
         # upscale crop
         frame=cv2.resize( crop_img,None,fx=args.zoom+2,fy=args.zoom+2, interpolation = cv2.INTER_CUBIC )
         logger.debug("new size    {}x {}".format(frame.shape[1],frame.shape[0] )  )
+    #######
+    text="{}".format(  datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S %A") )
+    logger.debug( "{}  {:d}".format(text,monitor[0]) )
+    textcolor=(0,0,255)  # b g r
+    cv2.putText(frame, "{}".format(text), ( int(0),(int(height-10) ) ), cv2.FONT_HERSHEY_SIMPLEX, 0.6, textcolor , 1)
+    #######
     ####### Show #####################################
     cv2.imshow('Video', frame)
     key=cv2.waitKey(10)  # MUST BE HERE for imshow
