@@ -11,14 +11,34 @@ import subprocess
 import numpy as np
 import random #  gray colors
 import datetime
-
+import logging
+from logzero import setup_logger,LogFormatter,colors
+import sys
+import collections  # ordered dict for  vcframes
+import threading # reconnect
+####################################
+# PARSER ARG
+######################################
 parser=argparse.ArgumentParser(description="""
 webcam2.py -s 1 ... number of streams to take
 """)
 
 parser.add_argument('-c','--config', default='~/.webcam.source' , help='')
+parser.add_argument('-d','--debug', action='store_true' , help='')
 parser.add_argument('-s','--streams',  default="1", help='take LISTED lines from .webcam.source')
 args=parser.parse_args() 
+
+###########################################
+# LOGGING   - after AGR PARSE
+########################################
+log_format = '%(color)s%(levelname)1.1s... %(asctime)s%(end_color)s %(message)s'  # i...  format
+LogFormatter.DEFAULT_COLORS[10] = colors.Fore.YELLOW ## debug level=10. default Cyan...
+loglevel=1 if args.debug==1 else 11  # all info, but not debug
+formatter = LogFormatter(fmt=log_format,datefmt='%Y-%m-%d %H:%M:%S')
+logfile=os.path.splitext(os.path.basename(sys.argv[0]) )[0]+'.log'
+logger = setup_logger( name="main",logfile=logfile, level=loglevel,formatter=formatter )#to 1-50
+
+logger.info('Starting webcam2.py')
 
 #########################################
 #
@@ -47,7 +67,8 @@ def load_source():
     SRC=[x+'/?action=stream' if x.find('http')>=0 else x for x in SRC  ]
     SRC=[ int(x) if x.isdigit() else x for x in SRC  ]
     if len(SRC)==1:SRC.append('')  # append second
-    print('i... webcam.source lines', len(SRC))
+#    print('i... webcam.source lines', len(SRC))
+    logger.info("webcam source lines: "+str(len(SRC))  )
     return SRC
 
 
@@ -72,8 +93,8 @@ def get_list_of_sources( argum ):
 ###############################################
 #   handle mouse 
 #
-#
-refPt=[]
+###############################################
+refPt=[]#
 cropping=False
 def click_and_crop(event, x, y, flags, param):
     # grab references to the global variables
@@ -84,7 +105,8 @@ def click_and_crop(event, x, y, flags, param):
     # performed
     if event == cv2.EVENT_LBUTTONDOWN:
         refPt = [(x, y)]
-        print( (x,y))
+        logger.debug('click_and_crop {}'.format((x,y)) )
+        #print( (x,y))
         cropping=True
         # check to see if the left mouse button was released
     elif event == cv2.EVENT_LBUTTONUP:
@@ -92,14 +114,18 @@ def click_and_crop(event, x, y, flags, param):
         # the cropping operation is finished
         refPt.append((x, y))
         cropping = False
-        print( (x,y))
+        logger.debug('click_and_crop {}'.format((x,y)) )
+        #print( (x,y))
         #cv2.rectangle( frame , refPt[0], refPt[1], (0, 255, 0), 2)
         #cv2.imshow("Video", frame)
     
-
+####################################################
+#  PUT IMAGES TOGETHER
+####################################################
 def construct_main_frame( frames ):
     fkeys=list(frames.keys())
-    #print(fkeys)
+    logger.debug('construct_main_frame   {}'.format( fkeys) )
+    #print("",fkeys)
     frame=frames[fkeys[0]]
     # if 2 images:line
     #    3,4   : 2x2
@@ -141,24 +167,50 @@ def construct_main_frame( frames ):
         frame=np.concatenate(( frame, frameb), axis=0)
             
     return frame
+
+##############################################
+# RE-ASSIGN 
+def worker( num ): # REASSIGN CV
+    global vclist
+    logger.info("trying to re-assign {}".format(num) )
+    vc=cv2.VideoCapture( SRC[num]  )
+    if not vc.isOpened():
+        vc=None
+    else:
+        logger.info("Reconnected ! ".format(SRC[num]) )
+        vclist[num]=vc
+
 ####################################################
 #               MAIN
 ##################################################
 #
 ##############################
 monitor=monitor_size()
-print( monitor )
+logger.info('Monitor '+str(monitor) )
+#print( monitor )
 vclist=[]
 
 
 
 SRC=load_source()
-CAMS=get_list_of_sources(args.streams)
-print("i... CAMS",CAMS)
+CAMS=get_list_of_sources(args.streams)  # THIS CONTAINS THE
+#print("i... CAMS",CAMS)
+logger.info("CAMS  {}".format(CAMS) )
 
-########### vc list : VideoCapture Streams 
+
+for i in CAMS:
+    logger.info("SRC{}: {}".format(i,SRC[i]) )
+# vc list : VideoCapture Streams 
 vclist={}   # vc object
-vcframes={} # frame
+#vcframes={} # frame .... dict doesnt know ordering
+# vcframes=correspondig pictures
+vcframes=collections.OrderedDict()  # yes, works 
+
+
+SRC[1]="http://pi3:8089/?action=stream" ## TEST REASSIGN
+##############################
+# initialize VideoCapture, get 1st picture
+##############################
 for i in CAMS:
     vc=cv2.VideoCapture( SRC[i]  )
     if not vc.isOpened(): # try to get the first frame
@@ -169,50 +221,72 @@ for i in CAMS:
         vcframes[i]=frameb
     else:
         vcframes[i]=None
-print("D... vclist Dict:",vclist)
-print("D... vcframes Dict:", len(vcframes) )
+#print("D... vclist Dict:", " ".join(vclist) )
+#print("D... vcframes Dict:", len(vcframes) )
+logger.debug("vclist   Dict:      {}".format(vclist) )
+logger.debug("vcframes Dict:      {} pictures".format(len(vcframes) ))
 
 
-############ initialization
+############ initialization of width , height #############
 cross=1
 zoom=0
 xoff=yoff=0
 width,height=640,480   # DEFAULT SIZE
 for i in vcframes:
-    if not vcframes[i] is None:
-        print('CAM',i,'empty frame... ', len(vcframes) )
-#    else:
+    if vcframes[i] is None:
+        #print('CAM',i,'empty frame... ', len(vcframes) )
+        logger.error("CAM"+str(i)+"  ... empty frame"+str(len(vcframes)) )
+    else:
         width,height=vcframes[i].shape[1],vcframes[i].shape[0]
-        print('CAM',i,width,"x",height)
+        #print('CAM',i,width,"x",height)
+        logger.info("CAM{}   {}x{}".format(i,width,height)  )
         #break
- 
 width1p,height1p=width,height
 aimx,aimy=int(width/2),int(height/2)
 ctrl=1
 
 
-###########
+
+
+
+
+########### INFINITE LOOP ################################
 cv2.namedWindow("Video")
 cv2.setMouseCallback("Video", click_and_crop)
 img_black=np.zeros( (height1p,width1p,3),dtype=np.uint8)
 #img_black1=img_black+ random.randint(20,180)
 first_run=True
+reco=0 ##TEST REASSIGN
+timetag=datetime.datetime.now()
 while True:
     for i in CAMS:
         #  fill the dictionary with frames
-        if not vclist[i] is None:
+        if not vclist[i] is None:  # videocapture OK
             rvalb,frameb=vclist[i].read()
             vcframes[i]=frameb
-        else:
-            img_black1=img_black+ i*10+60
-            vcframes[i]=img_black1
+        else:                      # videocapture NOTok
+            vcframes[i]=img_black+ i*10+60
+            ######## RE_ASSIGN EVERY  x SECONDS ###################
+            if (datetime.datetime.now()-timetag).total_seconds()>10: #EVERY x seconds
+                timetag=datetime.datetime.now()
+                #### re-assign
+                reco=reco+1 # TEST REASSIGN - looses 3 seconds every x seconds
+                logger.debug("RECO={}".format(reco) )
+                if reco>3:
+                    SRC[1]="http://pi3:8088/?action=stream"
+                t=threading.Thread(target=worker, args=(i,) )
+                t.start()
+                #worker( i )
+            
     frame=construct_main_frame( vcframes ) # create frame
     width,height=frame.shape[1],frame.shape[0]
     if first_run:
-        print(width,"x",height)
+        logger.info( " First run - actual wxh= {}x{}".format( width,height) )
+        #print(width,"x",height)
         first_run=False
     cv2.imshow('Video', frame)
     #cv2.imwrite( './'+datetime.datetime.now().strftime("%Y%m%d_%H%M%S_webcampy2.jpg"),frame )
-    key=cv2.waitKey(10)  # MUST for imshow
+    key=cv2.waitKey(10)  # MUST BE HERE for imshow
     if key == ord('q'):
         break
+################################ END OF INFINITE LOOP ##################
