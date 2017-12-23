@@ -26,6 +26,14 @@ webcam2.py -s 1 ... number of streams to take
 parser.add_argument('-c','--config', default='~/.webcam.source' , help='')
 parser.add_argument('-d','--debug', action='store_true' , help='')
 parser.add_argument('-s','--streams',  default="1", help='take LISTED lines from .webcam.source')
+parser.add_argument('-f','--fullscreen',  action="store_true")
+parser.add_argument('-z','--zoom',  default=0)
+
+
+parser.add_argument('-r','--cross',   action="store_true" , help='')
+parser.add_argument('-t','--timelapse',  default=99999999, type=int, help='')
+parser.add_argument('-p','--path_to_save',  default="./", help='')
+
 args=parser.parse_args() 
 
 ###########################################
@@ -98,14 +106,14 @@ refPt=[]#
 cropping=False
 def click_and_crop(event, x, y, flags, param):
     # grab references to the global variables
-    global refPt
+    global refPt, cropping, aimx,aimy
     
     # if the left mouse button was clicked, record the starting
     # (x, y) coordinates and indicate that cropping is being
     # performed
     if event == cv2.EVENT_LBUTTONDOWN:
         refPt = [(x, y)]
-        logger.debug('click_and_crop {}'.format((x,y)) )
+        logger.debug('click_and_crop DOWN {}'.format((x,y)) )
         #print( (x,y))
         cropping=True
         # check to see if the left mouse button was released
@@ -114,10 +122,11 @@ def click_and_crop(event, x, y, flags, param):
         # the cropping operation is finished
         refPt.append((x, y))
         cropping = False
-        logger.debug('click_and_crop {}'.format((x,y)) )
+        logger.debug('click_and_crop UP   {}'.format((x,y)) )
         #print( (x,y))
         #cv2.rectangle( frame , refPt[0], refPt[1], (0, 255, 0), 2)
         #cv2.imshow("Video", frame)
+    #aimx,aimy=x,y
     
 ####################################################
 #  PUT IMAGES TOGETHER
@@ -168,9 +177,87 @@ def construct_main_frame( frames ):
             
     return frame
 
+
+
+
+img_cross=np.zeros((512,512,4), np.uint8)
+def create_cross( ):  # if true = cross
+    global img_cross
+    img_cross=cv2.circle( img_cross, (255,255),255, (0,255,0,128),2)
+    img_cross=cv2.circle( img_cross, (255,255),128, (0,255,0,128),2)
+    img_cross=cv2.circle( img_cross, (255,255),64, (0,255,0,128), 2)
+    img_cross=cv2.line(img_cross,(0,255),(511,255),(0,255,0,128), 2)
+    img_cross=cv2.line(img_cross,(255,0),(255,511),(0,255,0,128), 2)
+    img_cross=cv2.rectangle(img_cross,(1,1),(510,510),(0,255,0,128), 3 )
+    return img_cross
+    
+def create_rectangle( ):  # if true = cross
+    global img_cross
+    img_cross=np.zeros((512,512,4), np.uint8)
+    img_cross=cv2.rectangle(img_cross,(1,1),(510,510),(0,255,0,128), 3 )
+    img_cross=cv2.rectangle(img_cross,(254,254),(256,256),(0,255,0,128), 3 )
+    return img_cross
+    
+def crop_image(  s_img2 , aimy, aimx, frame ):
+    '''
+    Crop image as zoom is defined - I do it for:
+    1/ be prepared for zoom
+    2/ watching changes is a subpicture
+    '''
+    yoff=aimy-int(s_img2.shape[0]/2)
+    xoff=aimx-int(s_img2.shape[1]/2)
+    remainy=frame.shape[0]-yoff-s_img2.shape[0]
+    remainx=frame.shape[1]-xoff-s_img2.shape[1]
+    if remainx<0 or remainy<0:
+        logger.debug("crop-image: remain<0")
+        return frame
+    #print( 'D... crop remains',remainx, remainy)      
+    crop_img = frame[  yoff:yoff+s_img2.shape[0], xoff:xoff+s_img2.shape[1] ]
+    return crop_img
+
+
+
+#===== PUT IMAGE ACROSS ==================
+def overlay_image( s_img2 , aimy, aimx, frame1 ,neww=512, newh=512):
+    '''
+    this overlays the image s_img2 over the frame1.  
+    def overlay_image( s_img2 , yoff,  xoff, frame1 ):
+    BUT why should I use offset?  isnt it better to have a center?
+    aimx aimy
+    '''
+    # new approach: see how much is to the borders
+    minx=min(aimx,frame1.shape[1]-aimx)
+    miny=min(aimy,frame1.shape[0]-aimy)
+    minxy=min(minx,miny)
+    logger.debug( "OVeRLay image:MIN: x= {}   y= {}  ... {}".format(minx,miny,minxy) )
+    if minxy<neww/2 and minxy<newh/2:
+        s_img2a=cv2.resize(s_img2, ( minxy,minxy ),interpolation = cv2.INTER_CUBIC)
+    else:
+        s_img2a=cv2.resize(s_img2, ( neww,newh ),interpolation = cv2.INTER_CUBIC)
+    #
+    yoff=aimy-int(s_img2a.shape[0]/2)
+    xoff=aimx-int(s_img2a.shape[1]/2)
+    logger.debug("overlay_image @ ({},{}); offs: +{}+{}".format(aimx,aimy,yoff,xoff)  )
+    #remy=frame1.shape[0]-yoff-s_img2.shape[0]
+    #remx=frame1.shape[1]-xoff-s_img2.shape[1]
+    #logger.debug("overlay_image @ {} {}; rems: +{}+{}".format(aimx,aimy,remy,remx)  )
+    #print( 'D... remains',remainx, remainy)
+    #if remx<0 or remy<0:
+    #    logger.debug("overlay_image ... remains < 0; return".format(1)  )
+    #    return frame1
+    for c in range(0,3):
+        frame1[yoff:yoff+s_img2a.shape[0],xoff:xoff+s_img2a.shape[1], c] =\
+            s_img2a[:,:,c] * (s_img2a[:,:,3]/255.0) +\
+            frame1[yoff:yoff+s_img2a.shape[0], xoff:xoff+s_img2a.shape[1], c] * (1.0 - s_img2a[:,:,3]/255.0)
+    #logger.debug("overlay_image ... returning frame1".format(1)  )
+
+    return frame1,s_img2a.shape[1],s_img2a.shape[0]
+
+
+
 ##############################################
 # RE-ASSIGN 
-def worker( num ): # REASSIGN CV
+def worker( num ): # REASSIGN CV IN CASE OF TCP PROBLEMS
     global vclist
     logger.info("trying to re-assign {}".format(num) )
     vc=cv2.VideoCapture( SRC[num]  )
@@ -207,7 +294,7 @@ vclist={}   # vc object
 vcframes=collections.OrderedDict()  # yes, works 
 
 
-SRC[1]="http://pi3:8089/?action=stream" ## TEST REASSIGN
+#SRC[1]="http://pi3:8089/?action=stream" ## TEST REASSIGN
 ##############################
 # initialize VideoCapture, get 1st picture
 ##############################
@@ -229,7 +316,6 @@ logger.debug("vcframes Dict:      {} pictures".format(len(vcframes) ))
 
 ############ initialization of width , height #############
 cross=1
-zoom=0
 xoff=yoff=0
 width,height=640,480   # DEFAULT SIZE
 for i in vcframes:
@@ -241,22 +327,30 @@ for i in vcframes:
         #print('CAM',i,width,"x",height)
         logger.info("CAM{}   {}x{}".format(i,width,height)  )
         #break
+
+#####  AIMX   AIMY  ####
 width1p,height1p=width,height
 aimx,aimy=int(width/2),int(height/2)
 ctrl=1
 
 
 
+if args.cross:
+    create_cross()
+else:
+    create_rectangle()
+w,h= img_cross.shape[1],img_cross.shape[0]
+#img_cross = cv2.resize(img_cross, ( int(w*0.7), int(h*0.7) ),interpolation = cv2.INTER_CUBIC)
 
+timelapse_time=datetime.datetime.now()
 
 
 ########### INFINITE LOOP ################################
 cv2.namedWindow("Video")
 cv2.setMouseCallback("Video", click_and_crop)
 img_black=np.zeros( (height1p,width1p,3),dtype=np.uint8)
-#img_black1=img_black+ random.randint(20,180)
 first_run=True
-reco=0 ##TEST REASSIGN
+#reco=0 ##TEST REASSIGN
 timetag=datetime.datetime.now()
 while True:
     for i in CAMS:
@@ -270,23 +364,80 @@ while True:
             if (datetime.datetime.now()-timetag).total_seconds()>10: #EVERY x seconds
                 timetag=datetime.datetime.now()
                 #### re-assign
-                reco=reco+1 # TEST REASSIGN - looses 3 seconds every x seconds
+                #reco=reco+1 # TEST REASSIGN - looses 3 seconds every x seconds
                 logger.debug("RECO={}".format(reco) )
-                if reco>3:
-                    SRC[1]="http://pi3:8088/?action=stream"
+                #if reco>3:
+                #    SRC[1]="http://pi3:8088/?action=stream"
                 t=threading.Thread(target=worker, args=(i,) )
-                t.start()
-                #worker( i )
+                t.start()                 #worker( i )
             
     frame=construct_main_frame( vcframes ) # create frame
+    ####################### NOW THE MAIN PICTURE IS CONSTRUCVTED #########
     width,height=frame.shape[1],frame.shape[0]
     if first_run:
         logger.info( " First run - actual wxh= {}x{}".format( width,height) )
-        #print(width,"x",height)
         first_run=False
+    ###### TIMELAPSE ################################
+    if (datetime.datetime.now()-timelapse_time).seconds>args.timelapse:
+        fname=args.path_to_save+'/'+datetime.datetime.now().strftime("%Y%m%d_%H%M%S_wc2.jpg")
+        cv2.imwrite( fname ,frame )
+        logger.info("image saved to {}".format( fname ) ) 
+        timelapse_time=datetime.datetime.now()
+        
+    ####### Cross or rectangle #######################
+    if len(refPt) == 2:  #  mouse click
+        refw=max( abs(refPt[1][0]-refPt[0][0]), 60 )
+        refh=max( abs(refPt[1][1]-refPt[0][1]), 60 )
+        aimx=int((refPt[1][0]+refPt[0][0])/2)
+        aimy=int((refPt[1][1]+refPt[0][1])/2)
+        logger.debug("ClickDetected: @({},{})  {} x {}".format(aimx,aimy,refw,refh) )
+        # I resize CROSS HERE !
+        frame,refw,refh=overlay_image( img_cross , aimy, aimx, frame , neww=refw, newh=refh)
+        img_cross=cv2.resize( img_cross, (refw,refh) , interpolation=cv2.INTER_CUBIC  )
+    else:
+        if args.cross:
+            frame,refw,refh=overlay_image( img_cross , aimy, aimx, frame )
+            img_cross=cv2.resize( img_cross, (refw,refh) , interpolation=cv2.INTER_CUBIC  )
+
+
+
+    ####### MODIFICATIONS ##### BEFORE SHOW
+    if args.fullscreen:
+        logger.debug("Upscaling to {}x{}".format(monitor[0],monitor[1]) )
+        frame=cv2.resize( frame , ( monitor[0],monitor[1] ),interpolation = cv2.INTER_CUBIC )
+    if args.zoom: ##############
+        logger.debug("Zoom" )
+        # first make crop
+        logger.debug("old size    {}x {}".format(img_cross.shape[1],img_cross.shape[0] )  )
+        crop_img=crop_image(  img_cross , aimy, aimx, frame )
+        logger.debug("new size    {}x {}".format(crop_img.shape[1],crop_img.shape[0] )  )
+        # upscale crop
+        frame=cv2.resize( crop_img,None,fx=args.zoom+2,fy=args.zoom+2, interpolation = cv2.INTER_CUBIC )
+        logger.debug("new size    {}x {}".format(frame.shape[1],frame.shape[0] )  )
+    ####### Show #####################################
     cv2.imshow('Video', frame)
-    #cv2.imwrite( './'+datetime.datetime.now().strftime("%Y%m%d_%H%M%S_webcampy2.jpg"),frame )
     key=cv2.waitKey(10)  # MUST BE HERE for imshow
     if key == ord('q'):
         break
+    if key == ord('r'):
+        logger.debug('r pressed')
+        img_cross=create_rectangle()
+    if key == ord('c'):
+        logger.debug('c pressed')
+        img_cross=create_cross()
+    if key == ord('f'):
+        if args.fullscreen:
+            logger.debug('f pressed  {} x {}   normal screen'.format( monitor[0], monitor[1] ) )
+            args.fullscreen=False
+        else:
+            logger.debug('f pressed  {} x {}   full screen'.format( monitor[0], monitor[1] ) )
+            args.fullscreen=True
+    if key==ord('z'):
+        if args.zoom==0:
+            args.zoom=1
+        elif args.zoom==1:
+            args.zoom=2
+        else:
+            args.zoom=0
+            ########
 ################################ END OF INFINITE LOOP ##################
