@@ -31,10 +31,11 @@ parser.add_argument('-c','--config', default='~/.webcam.source' , help='')
 parser.add_argument('-d','--debug', action='store_true' , help='')
 parser.add_argument('-s','--streams',  default="1", help='take LISTED lines from .webcam.source')
 parser.add_argument('-f','--fullscreen',  action="store_true")
-parser.add_argument('-z','--zoom',  default=0)
+#parser.add_argument('-z','--zoom',  default=0)
+ZOOM=0  # args.zoom not ok
 
-
-parser.add_argument('-r','--cross',   action="store_true" , help='')
+parser.add_argument('-a','--aiming',    action="store_true" , help='')
+parser.add_argument('-r','--rectangle', action="store_true" , help='')
 parser.add_argument('-t','--timelapse',  default=99999999, type=int, help='')
 parser.add_argument('-p','--path_to_save',  default="./", help='')
 
@@ -139,7 +140,7 @@ def click_and_crop(event, x, y, flags, param):
 ####################################################
 def construct_main_frame( frames ):
     fkeys=list(frames.keys())
-    logger.debug('construct_main_frame   {}'.format( fkeys) )
+    #logger.debug('construct_main_frame   {}'.format( fkeys) )
     #print("",fkeys)
     frame=frames[fkeys[0]]
     # if 2 images:line
@@ -240,7 +241,7 @@ def overlay_image( s_img2 , aimy1, aimx1, frame1 ,neww=512, newh=512):
     minx=min(aimx1,frame1.shape[1]-aimx1)
     miny=min(aimy1,frame1.shape[0]-aimy1)
     minxy=min(minx,miny)
-    logger.debug( "  OVeRLay image:MIN: x= {}   y= {}  ... {}".format(minx,miny,minxy) )
+    #logger.debug( "  OVeRLay image:MIN: x= {}   y= {}  ... {}".format(minx,miny,minxy) )
     if minxy<neww/2 and minxy<newh/2:
         s_img2a=cv2.resize(s_img2, ( minxy,minxy ),interpolation = cv2.INTER_CUBIC)
     else:
@@ -248,7 +249,7 @@ def overlay_image( s_img2 , aimy1, aimx1, frame1 ,neww=512, newh=512):
     #
     yoff=aimy1-int(s_img2a.shape[0]/2)
     xoff=aimx1-int(s_img2a.shape[1]/2)
-    logger.debug("  overlay_image @ ({},{}); offs: +{}+{}".format(aimx1,aimy1,yoff,xoff)  )
+    logger.debug("  overlay_image @({},{});offs:+{}+{} MIN={}/{}".format(aimx1,aimy1,yoff,xoff, minx,miny)  )
     #remy=frame1.shape[0]-yoff-s_img2.shape[0]
     #remx=frame1.shape[1]-xoff-s_img2.shape[1]
     #logger.debug("overlay_image @ {} {}; rems: +{}+{}".format(aimx,aimy,remy,remx)  )
@@ -346,7 +347,7 @@ ctrl=1
 
 
 
-if args.cross:
+if args.aiming:
     create_cross()
 else:
     create_rectangle()
@@ -363,6 +364,7 @@ img_black=np.zeros( (height1p,width1p,3),dtype=np.uint8)
 first_run=True
 #reco=0 ##TEST REASSIGN
 timetag=datetime.datetime.now()
+refw,refh=512,512  # initial cross size
 while True:
     for i in CAMS:
         #  fill the dictionary with frames
@@ -396,7 +398,12 @@ while True:
         timelapse_time=datetime.datetime.now()
         
     ####### Cross or rectangle #######################
-    if len(refPt) == 2:  #  mouse click
+    if len(refPt) == 2:  #  mouse click =========
+        if args.aiming:
+            img_cross=create_cross()  # new cross size
+        if args.rectangle:
+            img_cross=create_rectangle() # new cross size
+
         refw=max( abs(refPt[1][0]-refPt[0][0]), 60 )
         refh=max( abs(refPt[1][1]-refPt[0][1]), 60 )
         
@@ -404,18 +411,14 @@ while True:
         aimy=int((refPt[1][1]+refPt[0][1])/2)
         
         refPt=[]
-        logger.debug("ClickDetected: @({},{})  {} x {}".format(aimx,aimy,refw,refh) )
+        logger.debug("Overlay CLICK: @({},{})  {} x {}".format(aimx,aimy,refw,refh) )
         # I resize CROSS HERE !
         frame,refw,refh=overlay_image( img_cross , aimy, aimx, frame , neww=refw, newh=refh)
-        if args.cross:
-            img_cross=create_cross()
-        else:
-            img_cross=create_rectangle()
         img_cross=cv2.resize( img_cross, (refw,refh) , interpolation=cv2.INTER_CUBIC  )
     else:
-        if args.cross:
-            logger.debug("Overlay CROSS  aim={},{}".format(aimy,aimx) )
-            frame,refw,refh=overlay_image( img_cross , aimy, aimx,  frame )
+        if args.aiming or args.rectangle:
+            logger.debug("Overlay CR-RG  aim={},{}".format(aimx,aimy) )
+            frame,refw,refh=overlay_image( img_cross , aimy, aimx,  frame, neww=refw, newh=refh )
             img_cross=cv2.resize( img_cross, (refw,refh) , interpolation=cv2.INTER_CUBIC  )
 
 
@@ -424,24 +427,33 @@ while True:
     if args.fullscreen:
         logger.debug("Upscaling to {}x{}".format(monitor[0],monitor[1]) )
         frame=cv2.resize( frame , ( monitor[0],monitor[1] ),interpolation = cv2.INTER_CUBIC )
-    if args.zoom: ##############
+    if ZOOM>0: ##############
         logger.debug("Zoom" )
         # first make crop
         logger.debug("old size    {}x {}".format(img_cross.shape[1],img_cross.shape[0] )  )
         crop_img=crop_image(  img_cross , aimy, aimx, frame )
         logger.debug("new size    {}x {}".format(crop_img.shape[1],crop_img.shape[0] )  )
         # upscale crop
-        frame=cv2.resize( crop_img,None,fx=args.zoom+2,fy=args.zoom+2, interpolation = cv2.INTER_CUBIC )
+        frame=cv2.resize( crop_img,None,fx=ZOOM*4,fy=ZOOM*4, interpolation = cv2.INTER_CUBIC )
         logger.debug("new size    {}x {}".format(frame.shape[1],frame.shape[0] )  )
-    #######
-    text="{}".format(  datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S %A") )
-    logger.debug( "{}  {:d}".format(text,monitor[0]) )
+
+
+    ####### TEXT ON
+    text="{}".format(  datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S %a") )
+    #logger.debug( "{}  {:d}".format(text,monitor[0]) )
     textcolor=(0,0,255)  # b g r
     cv2.putText(frame, "{}".format(text), ( int(0),(int(height-10) ) ), cv2.FONT_HERSHEY_SIMPLEX, 0.6, textcolor , 1)
     #######
     ####### Show #####################################
     cv2.imshow('Video', frame)
-    key=cv2.waitKey(10)  # MUST BE HERE for imshow
+    waitms=10
+    if args.timelapse<99999:
+        waitms=2000
+#    elif args.timelapse<10:
+#        waitms=100
+#    elif args.timelapse<3:
+#        waitms=10
+    key=cv2.waitKey( waitms )  # MUST BE HERE for imshow
     if key == ord('q'):
         break
     if key == ord('r'):
@@ -458,12 +470,12 @@ while True:
             logger.debug('f pressed  {} x {}   full screen'.format( monitor[0], monitor[1] ) )
             args.fullscreen=True
     if key==ord('z'):
-        if args.zoom==0:
-            args.zoom=1
-        elif args.zoom==1:
-            args.zoom=2
+        if ZOOM==0:
+            ZOOM=1
+#        elif ZOOM==1:
+#            ZOOM=2
         else:
-            args.zoom=0
+            ZOOM=0
     #---> arrows  CTRL can be read by key==227 and cv2.waitKey(1)
     if key == 83 or key==108: #L
         aimx=aimx+5
@@ -471,11 +483,11 @@ while True:
     if key == 81 or key==104: #H
         aimx=aimx-5
         logger.debug("-{}x".format(aimx) )
-    if key == 82 or key==106: #J
-        logger.debug("+{}y".format(aimx) )
+    if key == 84 or key==106: #J
+        logger.debug("+{}y".format(aimy) )
         aimy=aimy+5
-    if key == 84 or key==107: #K
-        logger.debug("-{}y".format(aimx) )
+    if key == 82 or key==107: #K
+        logger.debug("-{}y".format(aimy) )
         aimy=aimy-5
             ########
 ################################ END OF INFINITE LOOP ##################
