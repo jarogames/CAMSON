@@ -16,8 +16,9 @@ from logzero import setup_logger,LogFormatter,colors
 import sys
 import collections  # ordered dict for  vcframes
 import threading # reconnect
+import time # sleep
 
-
+RECONNECT_TIMEOUT=20
 
 
 ####################################
@@ -25,6 +26,9 @@ import threading # reconnect
 ######################################
 parser=argparse.ArgumentParser(description="""
 webcam2.py -s 1 ... number of streams to take
+USAGE CASES:
+python webcam2.py -c ~/.webcam.pages -d -s 0,1,2,3  -t 600,60
+#  enough to read() the 4 webcams and save every 10 minutes
 """)
 
 parser.add_argument('-c','--config', default='~/.webcam.source' , help='')
@@ -37,7 +41,9 @@ ZOOM=0  # args.zoom not ok
 parser.add_argument('-a','--aiming',    action="store_true" , help='')
 parser.add_argument('-r','--rectangle', action="store_true" , help='')
 parser.add_argument('-t','--timelapse',  default='99999999',  help='') # type=int
-parser.add_argument('-p','--path_to_save',  default="./", help='')
+parser.add_argument('-p','--path_to_save',  default="~/.motion/", help='')
+
+parser.add_argument('-n','--noshow',  action="store_true", help='')
 
 args=parser.parse_args() 
 
@@ -387,19 +393,24 @@ timelapse_time=datetime.datetime.now()
 timelapse_list=args.timelapse.split(",")
 timelapse_interval=int(args.timelapse.split(",")[0])
 logger.info("Timelapse - save interval {:d} s ".format(timelapse_interval) )
-timelapse_wait=10
+timelapse_wait=0.01
 if len(timelapse_list)>1:
-    timelapse_wait=int(args.timelapse.split(",")[1])*1000
-    logger.info("Timelapse - waitkey interval {:d} ms ".format(timelapse_wait) )
-
-
+    timelapse_wait=int(args.timelapse.split(",")[1])
+    logger.info("Timelapse - waitkey interval {:d} s ".format(timelapse_wait) )
+    if timelapse_wait<=RECONNECT_TIMEOUT*2:
+        logger.error("timelapse wait is longer than RECONNECT - WILL NOT WORK OK, reset before RECONNECT ")
+        quit()
+    if timelapse_interval<timelapse_wait*2:
+        logger.error("timelapse interval not good with reconnect time - QUIT ")
+        quit()
 
 
     
 
 ########### INFINITE LOOP ################################
-cv2.namedWindow("Video")
-cv2.setMouseCallback("Video", click_and_crop)
+if not args.noshow: cv2.namedWindow("Video")
+if not args.noshow: cv2.setMouseCallback("Video", click_and_crop)
+
 img_black=np.zeros( (height1p,width1p,3),dtype=np.uint8)
 first_run=True
 #reco=0 ##TEST REASSIGN
@@ -423,7 +434,7 @@ while True:
         else:                      # videocapture NOTok
             vcframes[i]=img_black+ i*10+60
             ######## RE_ASSIGN EVERY  x SECONDS ###################
-            if (datetime.datetime.now()-timetag).total_seconds()>20: #EVERY x seconds
+            if (datetime.datetime.now()-timetag).total_seconds()>RECONNECT_TIMEOUT: #EVERY x seconds
                 timetag=datetime.datetime.now()
                 #### re-assign
                 #reco=reco+1 # TEST REASSIGN - looses 3 seconds every x seconds
@@ -441,7 +452,12 @@ while True:
         first_run=False
     ###### TIMELAPSE ################################ WE USE jpg (ALL?) RESET
     if (datetime.datetime.now()-timelapse_time).seconds>timelapse_interval:
-        fname=args.path_to_save+'/'+datetime.datetime.now().strftime("%Y%m%d_%H%M%S_wc2.jpg")
+        fname=os.path.expanduser( args.path_to_save+'/'+datetime.datetime.now().strftime("%Y%m%d_%a") )
+        if not os.path.exists( fname ):
+            os.makedirs( fname )
+            
+        fname=fname+'/'+datetime.datetime.now().strftime("%Y%m%d_%H%M%S_wc2.jpg")
+        fname=fname.replace('//','/')
         cv2.imwrite( fname ,frame )
         logger.info("image saved to {}".format( fname ) ) 
         timelapse_time=datetime.datetime.now()
@@ -495,10 +511,15 @@ while True:
     cv2.putText(frame, "{}".format(text), ( int(0),(int(height-10) ) ), cv2.FONT_HERSHEY_SIMPLEX, 0.6, textcolor , 1)
     #######
     ####### Show #####################################
-    cv2.imshow('Video', frame)
-    logger.debug( "   waitkey - {} ms begin".format( timelapse_wait ) )
-    key=cv2.waitKey( timelapse_wait )  # MUST BE HERE for imshow
-    logger.debug( "   waitkey - {} ms end".format( timelapse_wait ) )
+    if not args.noshow: cv2.imshow('Video', frame)
+    tlw = int(timelapse_wait*1000)
+    logger.debug( "   waitkey - {} ms begin".format( tlw ) )
+    if not args.noshow:
+        key=cv2.waitKey( tlw )  # MUST BE HERE for imshow
+    else:
+        key=""
+        time.sleep( timelapse_wait)
+    logger.debug( "   waitkey - {} s end".format( timelapse_wait ) )
     if key == ord('q'):
         break
     if key == ord('r'):
