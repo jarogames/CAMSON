@@ -36,7 +36,7 @@ ZOOM=0  # args.zoom not ok
 
 parser.add_argument('-a','--aiming',    action="store_true" , help='')
 parser.add_argument('-r','--rectangle', action="store_true" , help='')
-parser.add_argument('-t','--timelapse',  default=99999999, type=int, help='')
+parser.add_argument('-t','--timelapse',  default='99999999',  help='') # type=int
 parser.add_argument('-p','--path_to_save',  default="./", help='')
 
 args=parser.parse_args() 
@@ -77,7 +77,7 @@ def load_source():
         SRC=f.readlines()
     SRC=[x.rstrip() for x in SRC]  # rstrip lines
 #    if SRC[1].find('http'):        # if stream:::
-    SRC=[x+'/?action=stream' if x.find('http')>=0 else x for x in SRC  ]
+    #SRC=[x+'/?action=stream' if x.find('http')>=0 else x for x in SRC  ]
     SRC=[ int(x) if x.isdigit() else x for x in SRC  ]
     if len(SRC)==1:SRC.append('')  # append second
 #    print('i... webcam.source lines', len(SRC))
@@ -142,13 +142,25 @@ def construct_main_frame( frames ):
     fkeys=list(frames.keys())
     #logger.debug('construct_main_frame   {}'.format( fkeys) )
     #print("",fkeys)
-    frame=frames[fkeys[0]]
+    frame=frames[ fkeys[0]]
+    w=frames[ fkeys[0]].shape[1]
+    h=frames[ fkeys[0]].shape[0]
     # if 2 images:line
     #    3,4   : 2x2
     #    5,6   : 3x2
     #    print( img_black.shape, frame.shape )
     
 #    img_black = np.zeros( (height1p,height1p,1) , np.int8)
+### check frame ???  Size #########
+    if len(frames)>0:
+        for i in frames:
+            pic=frames[ fkeys[i] ]
+            if not  pic is None:
+                #frames[ fkeys[i] ]=img_black
+                if pic.shape[1]!=w or pic.shape[0]!=h:
+                    print('resize time')
+                    frames[ fkeys[i] ]=cv2.resize( pic, (w,h),  interpolation=cv2.INTER_CUBIC )
+                
     if len(frames)<=2:
         #print(2)
         for i in range(1,len(frames)):
@@ -276,9 +288,14 @@ def worker( num ): # REASSIGN CV IN CASE OF TCP PROBLEMS
     if not vc.isOpened():
         vc=None
     else:
-        logger.info("  Reconnected ! ".format(SRC[num]) )
+        logger.info("  Reconnected from worker SRC={} ".format(SRC[num]) )
         vclist[num]=vc
 
+
+
+
+
+        
 ####################################################
 #               MAIN
 ##################################################
@@ -306,6 +323,7 @@ vclist={}   # vc object
 vcframes=collections.OrderedDict()  # yes, works 
 
 
+
 #SRC[1]="http://pi3:8089/?action=stream" ## TEST REASSIGN
 ##############################
 # initialize VideoCapture, get 1st picture
@@ -314,16 +332,27 @@ for i in CAMS:
     vc=cv2.VideoCapture( SRC[i]  )
     if not vc.isOpened(): # try to get the first frame
         vc=None
+        logger.error("stream {} NOT opened".format(i) )
+    else:
+        logger.info("stream {} opened".format(i) )
     vclist[i]=vc
     if not vc is None:
         rvalb,frameb=vclist[i].read()
-        vcframes[i]=frameb
+        if rvalb:
+            vcframes[i]=frameb
+        else:
+            vcframes[i]=img_black+ i*10+60
+            vclist[i]=None
     else:
         vcframes[i]=None
 #print("D... vclist Dict:", " ".join(vclist) )
 #print("D... vcframes Dict:", len(vcframes) )
 logger.debug("vclist   Dict:      {}".format(vclist) )
 logger.debug("vcframes Dict:      {} pictures".format(len(vcframes) ))
+
+
+
+
 
 
 ############ initialization of width , height #############
@@ -355,7 +384,18 @@ w,h= img_cross.shape[1],img_cross.shape[0]
 #img_cross = cv2.resize(img_cross, ( int(w*0.7), int(h*0.7) ),interpolation = cv2.INTER_CUBIC)
 
 timelapse_time=datetime.datetime.now()
+timelapse_list=args.timelapse.split(",")
+timelapse_interval=int(args.timelapse.split(",")[0])
+logger.info("Timelapse - save interval {:d} s ".format(timelapse_interval) )
+timelapse_wait=10
+if len(timelapse_list)>1:
+    timelapse_wait=int(args.timelapse.split(",")[1])*1000
+    logger.info("Timelapse - waitkey interval {:d} ms ".format(timelapse_wait) )
 
+
+
+
+    
 
 ########### INFINITE LOOP ################################
 cv2.namedWindow("Video")
@@ -370,15 +410,24 @@ while True:
         #  fill the dictionary with frames
         if not vclist[i] is None:  # videocapture OK
             rvalb,frameb=vclist[i].read()
-            vcframes[i]=frameb
+            if timelapse_interval<99999: # say read - when using timelapse
+                logger.debug("read() CAM={}  return={}".format(i, rvalb) )
+            if rvalb:
+                vcframes[i]=frameb
+            ###========= THIS I REMOVED. JPG ARE OK NOW>..    !!!!
+            ###   ====== evidently  - pic stall can appear...
+            #else:
+                #vcframes[i]=img_black+ i*10+60
+                #vclist[i]=None
+            #
         else:                      # videocapture NOTok
             vcframes[i]=img_black+ i*10+60
             ######## RE_ASSIGN EVERY  x SECONDS ###################
-            if (datetime.datetime.now()-timetag).total_seconds()>10: #EVERY x seconds
+            if (datetime.datetime.now()-timetag).total_seconds()>20: #EVERY x seconds
                 timetag=datetime.datetime.now()
                 #### re-assign
                 #reco=reco+1 # TEST REASSIGN - looses 3 seconds every x seconds
-                logger.debug("RECO={}".format(reco) )
+                logger.debug("RECONNECT {}".format(i) )
                 #if reco>3:
                 #    SRC[1]="http://pi3:8088/?action=stream"
                 t=threading.Thread(target=worker, args=(i,) )
@@ -390,13 +439,14 @@ while True:
     if first_run:
         logger.info( " First run - actual wxh= {}x{}".format( width,height) )
         first_run=False
-    ###### TIMELAPSE ################################
-    if (datetime.datetime.now()-timelapse_time).seconds>args.timelapse:
+    ###### TIMELAPSE ################################ WE USE jpg (ALL?) RESET
+    if (datetime.datetime.now()-timelapse_time).seconds>timelapse_interval:
         fname=args.path_to_save+'/'+datetime.datetime.now().strftime("%Y%m%d_%H%M%S_wc2.jpg")
         cv2.imwrite( fname ,frame )
         logger.info("image saved to {}".format( fname ) ) 
         timelapse_time=datetime.datetime.now()
-        
+        for i in CAMS:
+            vclist[i]=None
     ####### Cross or rectangle #######################
     if len(refPt) == 2:  #  mouse click =========
         if args.aiming:
@@ -446,14 +496,9 @@ while True:
     #######
     ####### Show #####################################
     cv2.imshow('Video', frame)
-    waitms=10
-    if args.timelapse<99999:
-        waitms=2000
-#    elif args.timelapse<10:
-#        waitms=100
-#    elif args.timelapse<3:
-#        waitms=10
-    key=cv2.waitKey( waitms )  # MUST BE HERE for imshow
+    logger.debug( "   waitkey - {} ms begin".format( timelapse_wait ) )
+    key=cv2.waitKey( timelapse_wait )  # MUST BE HERE for imshow
+    logger.debug( "   waitkey - {} ms end".format( timelapse_wait ) )
     if key == ord('q'):
         break
     if key == ord('r'):
