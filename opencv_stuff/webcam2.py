@@ -31,22 +31,25 @@ python webcam2.py -c ~/.webcam.pages -d -s 0,1,2,3  -t 600,60
 #  enough to read() the 4 webcams and save every 10 minutes
 """)
 
+parser.add_argument('-a','--aiming',    action="store_true" , help='')
 parser.add_argument('-c','--config', default='~/.webcam.source' , help='')
 parser.add_argument('-d','--debug', action='store_true' , help='')
-parser.add_argument('-s','--streams',  default="1", help='take LISTED lines from .webcam.source')
 parser.add_argument('-f','--fullscreen',  action="store_true")
+
+parser.add_argument('-p','--path_to_save',  default="~/.motion/", help='')
+parser.add_argument('-r','--rectangle', action="store_true" , help='')
+parser.add_argument('-s','--streams',  default="1", help='take LISTED lines from .webcam.source')
+parser.add_argument('-t','--timelapse',  default='99999999',  help='') # type=int
+
+parser.add_argument('-n','--noshow',  action="store_true", help='dont create, show window, waitkey')
+parser.add_argument('-w','--writename', default="", help='attach (write) a name in saved (timelapse) jpg ')
+
+
 #parser.add_argument('-z','--zoom',  default=0)
 ZOOM=0  # args.zoom not ok
 
-parser.add_argument('-a','--aiming',    action="store_true" , help='')
-parser.add_argument('-r','--rectangle', action="store_true" , help='')
-parser.add_argument('-t','--timelapse',  default='99999999',  help='') # type=int
-parser.add_argument('-p','--path_to_save',  default="~/.motion/", help='')
-
-parser.add_argument('-n','--noshow',  action="store_true", help='')
-
 args=parser.parse_args() 
-
+if args.writename!="": args.writename="_"+args.writename
 ###########################################
 # LOGGING   - after AGR PARSE
 ########################################
@@ -65,6 +68,7 @@ logger.info('Starting webcam2.py')
 ########################################
 
 def monitor_size():
+    if args.noshow: return [1024,768]  # XRANDR doesnt know from myservice
     CMD="xrandr  | grep \* | cut -d' ' -f4"
     p=subprocess.check_output(CMD , shell=True)
     wihe=p.decode('utf8').rstrip().split('x')
@@ -445,24 +449,35 @@ while True:
                 t.start()                 #worker( i )
             
     frame=construct_main_frame( vcframes ) # create frame
-    ####################### NOW THE MAIN PICTURE IS CONSTRUCVTED #########
+    ####################### NOW THE MAIN PICTURE IS CONSTRUCTED #########
     width,height=frame.shape[1],frame.shape[0]
     if first_run:
         logger.info( " First run - actual wxh= {}x{}".format( width,height) )
         first_run=False
+    ######================ GO WITH ALL TRICKS NOW ======================
+
+    
+    ####### TEXT ON
+    text="{}".format(  datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S %a") )
+    #logger.debug( "{}  {:d}".format(text,monitor[0]) )
+    textcolor=(0,0,255)  # b g r
+    cv2.putText(frame, "{}".format(text), ( int(0),(int(height-10) ) ), cv2.FONT_HERSHEY_SIMPLEX, 0.6, textcolor , 1)
+
+    
     ###### TIMELAPSE ################################ WE USE jpg (ALL?) RESET
     if (datetime.datetime.now()-timelapse_time).seconds>timelapse_interval:
-        fname=os.path.expanduser( args.path_to_save+'/'+datetime.datetime.now().strftime("%Y%m%d_%a") )
+        fname=os.path.expanduser( args.path_to_save+'/'+datetime.datetime.now().strftime("%Y%m%d_%a")+args.writename )
         if not os.path.exists( fname ):
             os.makedirs( fname )
             
-        fname=fname+'/'+datetime.datetime.now().strftime("%Y%m%d_%H%M%S_wc2.jpg")
+        fname=fname+'/'+datetime.datetime.now().strftime("%Y%m%d_%H%M%S.jpg")
         fname=fname.replace('//','/')
         cv2.imwrite( fname ,frame )
         logger.info("image saved to {}".format( fname ) ) 
         timelapse_time=datetime.datetime.now()
         for i in CAMS:
             vclist[i]=None
+            
     ####### Cross or rectangle #######################
     if len(refPt) == 2:  #  mouse click =========
         if args.aiming:
@@ -504,11 +519,6 @@ while True:
         logger.debug("new size    {}x {}".format(frame.shape[1],frame.shape[0] )  )
 
 
-    ####### TEXT ON
-    text="{}".format(  datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S %a") )
-    #logger.debug( "{}  {:d}".format(text,monitor[0]) )
-    textcolor=(0,0,255)  # b g r
-    cv2.putText(frame, "{}".format(text), ( int(0),(int(height-10) ) ), cv2.FONT_HERSHEY_SIMPLEX, 0.6, textcolor , 1)
     #######
     ####### Show #####################################
     if not args.noshow: cv2.imshow('Video', frame)
