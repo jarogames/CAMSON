@@ -164,7 +164,9 @@ def construct_main_frame( frames ):
 ### check frame ???  Size #########
     if len(frames)>0:
         for i in frames:
-            pic=frames[ fkeys[i] ]
+            logger.debug("   ... frame  {} of {}".format(i, fkeys ) )
+            #pic=frames[ fkeys[i] ]
+            pic=frames[ i ]
             if not  pic is None:
                 #frames[ fkeys[i] ]=img_black
                 if pic.shape[1]!=w or pic.shape[0]!=h:
