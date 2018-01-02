@@ -306,6 +306,72 @@ def worker( num ): # REASSIGN CV IN CASE OF TCP PROBLEMS
 
 
 
+                   ####################################
+############################# MOTION PART ##########################
+                     ############################
+
+
+
+####################################################
+#https://stackoverflow.com/questions/26690932/opencv-rectangle-with-dotted-or-dashed-lines
+#
+def drawline(img,pt1,pt2,color,thickness=1,style='dotted',gap=20):
+    dist =((pt1[0]-pt2[0])**2+(pt1[1]-pt2[1])**2)**.5
+    pts= []
+    for i in  np.arange(0,dist,gap):
+        r=i/dist
+        x=int((pt1[0]*(1-r)+pt2[0]*r)+.5)
+        y=int((pt1[1]*(1-r)+pt2[1]*r)+.5)
+        p = (x,y)
+        pts.append(p)
+
+    if style=='dotted':
+        for p in pts:
+            cv2.circle(img,p,thickness,color,-1)
+    else:
+        s=pts[0]
+        e=pts[0]
+        i=0
+        for p in pts:
+            s=e
+            e=p
+            if i%2==1:
+                cv2.line(img,s,e,color,thickness)
+            i+=1
+
+def drawpoly(img,pts,color,thickness=1,style='dotted',):
+    s=pts[0]
+    e=pts[0]
+    pts.append(pts.pop(0))
+    for p in pts:
+        s=e
+        e=p
+        drawline(img,s,e,color,thickness,style)
+
+def drawrect(img,pt1,pt2,color,thickness=1,style='dotted'):
+    pts = [pt1,(pt2[0],pt1[1]),pt2,(pt1[0],pt2[1])] 
+    drawpoly(img,pts,color,thickness,style)
+
+#################################### DRAWING DASHED RECT
+
+# CONSTANTS  ######
+alpha=0.07  # running average
+last_stamp=""
+relax=0  # remove images after flash
+MMAXWH=60000
+framecount=0
+framelastat=time.time()
+             
+
+        
+
+
+############################# MOTION PART ###### END ############
+
+
+
+
+        
 
         
 ####################################################
@@ -319,26 +385,24 @@ logger.info('  Monitor '+str(monitor) )
 vclist=[]
 
 
-
+####################### LOAD CONFIG ############
 SRC=load_source()
 CAMS=get_list_of_sources(args.streams)  # THIS CONTAINS THE
 #print("i... CAMS",CAMS)
 logger.info("CAMS  {}".format(CAMS) )
-
-
 for i in CAMS:
     logger.info("SRC{}: {}".format(i,SRC[i]) )
 # vc list : VideoCapture Streams 
 vclist={}   # vc object
 #vcframes={} # frame .... dict doesnt know ordering
-# vcframes=correspondig pictures
+####  vcframes ... correspondig pictures
 vcframes=collections.OrderedDict()  # yes, works 
 
 
 
-#SRC[1]="http://pi3:8089/?action=stream" ## TEST REASSIGN
 ##############################
 # initialize VideoCapture, get 1st picture
+#     better do with worker
 ##############################
 for i in CAMS:
     vc=cv2.VideoCapture( SRC[i]  )
@@ -357,8 +421,6 @@ for i in CAMS:
             vclist[i]=None
     else:
         vcframes[i]=None
-#print("D... vclist Dict:", " ".join(vclist) )
-#print("D... vcframes Dict:", len(vcframes) )
 logger.debug("vclist   Dict:      {}".format(vclist) )
 logger.debug("vcframes Dict:      {} pictures".format(len(vcframes) ))
 
