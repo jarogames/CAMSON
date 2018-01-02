@@ -186,7 +186,7 @@ def construct_main_frame( frames ):
             if not  pic is None:
                 #frames[ fkeys[i] ]=img_black
                 if pic.shape[1]!=w or pic.shape[0]!=h:
-                    print('resize time')
+                    logger.debug('resize frame (construction of main frame)')
                     frames[ fkeys[i] ]=cv2.resize( pic, (w,h),  interpolation=cv2.INTER_CUBIC )
                 
     if len(frames)<=2:
