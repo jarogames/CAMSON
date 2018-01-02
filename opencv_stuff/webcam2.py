@@ -25,11 +25,9 @@ RECONNECT_TIMEOUT=20
 # PARSER ARG
 ######################################
 parser=argparse.ArgumentParser(description="""
-webcam2.py -s 1 ... number of streams to take
-USAGE CASES:
-python webcam2.py -c ~/.webcam.pages -d -s 0,1,2,3  -t 600,60
-#  enough to read() the 4 webcams and save every 10 minutes
+webcam2.py -s 0 ... number of streams to take from ~/.webcam.source.
 """)
+
 
 parser.add_argument('-a','--aiming',    action="store_true" , help='')
 parser.add_argument('-c','--config', default='~/.webcam.source' , help='')
@@ -48,8 +46,28 @@ parser.add_argument('-w','--writename', default="", help='attach (write) a name 
 #parser.add_argument('-z','--zoom',  default=0)
 ZOOM=0  # args.zoom not ok
 
+print("""
+USAGE CASES:
+------------------------------------------------------------------
+  # 1st tests with jpg
+python webcam2.py -c ~/.webcam.pages -d -s 0,1,2,3  -t 600,60
+  # real use in myservice
+python webcam2.py -c ~/.webcam.pages -d -s 0,1,2,3  -t 600,60 -n -w webcams
+  #  enough to read() the 4 webcams and save every 10 minutes
+  #
+  #  rectangle/interactive w.mouse.   c-r ,z , hjkl keys,  q quit
+python webcam2.py -d -s 0,1 -r
+
+------------------------------------------------------------------
+""")
+
 args=parser.parse_args() 
 if args.writename!="": args.writename="_"+args.writename
+
+
+
+
+
 ###########################################
 # LOGGING   - after AGR PARSE
 ########################################
@@ -170,7 +188,7 @@ def construct_main_frame( frames ):
             if not  pic is None:
                 #frames[ fkeys[i] ]=img_black
                 if pic.shape[1]!=w or pic.shape[0]!=h:
-                    print('resize time')
+                    logger.debug('resize frame (construction of main frame)')
                     frames[ fkeys[i] ]=cv2.resize( pic, (w,h),  interpolation=cv2.INTER_CUBIC )
                 
     if len(frames)<=2:
