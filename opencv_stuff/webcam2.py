@@ -17,6 +17,7 @@ import sys
 import collections  # ordered dict for  vcframes
 import threading # reconnect
 import time # sleep
+import locale
 
 RECONNECT_TIMEOUT=20
 
@@ -33,6 +34,9 @@ parser.add_argument('-a','--aiming',    action="store_true" , help='')
 parser.add_argument('-c','--config', default='~/.webcam.source' , help='')
 parser.add_argument('-d','--debug', action='store_true' , help='')
 parser.add_argument('-f','--fullscreen',  action="store_true")
+
+
+parser.add_argument('-m','--motion',  action="store_true")
 
 parser.add_argument('-p','--path_to_save',  default="~/.motion/", help='')
 parser.add_argument('-r','--rectangle', action="store_true" , help='')
@@ -385,12 +389,25 @@ framelastat=time.time()
 
 
 ############################# MOTION PART ###### END ############
-
-
-
+def get_save_filename():
+    fname=os.path.expanduser( args.path_to_save+'/'+datetime.datetime.now().strftime("%Y%m%d_%a")+args.writename )
+    if not os.path.exists( fname ):
+        os.makedirs( fname )
+            
+    fname=fname+'/'+datetime.datetime.now().strftime("%Y%m%d_%H%M%S.jpg")
+    fname=fname.replace('//','/')
+    return fname
 
         
-
+def put_date_on_frame( frame ):
+    ####### TEXT ON : DATE
+    text="{}".format(  datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S %a") )
+    #logger.debug( "{}  {:d}".format(text,monitor[0]) )
+    textcolor=(0,0,255)  # b g r
+    cv2.rectangle(frame, (0, height-30), (300, height),(50, 50, 50), -1)
+    cv2.putText(frame, "{}".format(text), ( int(0),(int(height-10) ) ), cv2.FONT_HERSHEY_SIMPLEX, 0.6, textcolor , 1)
+    locale.setlocale(locale.LC_ALL, "en_GB.UTF8")
+    
         
 ####################################################
 #               MAIN
@@ -494,6 +511,9 @@ if len(timelapse_list)>1:
     
 
 ########### INFINITE LOOP ################################
+########### INFINITE LOOP ################################
+########### INFINITE LOOP ################################
+
 if not args.noshow: cv2.namedWindow("Video")
 if not args.noshow: cv2.setMouseCallback("Video", click_and_crop)
 
@@ -502,7 +522,17 @@ first_run=True
 #reco=0 ##TEST REASSIGN
 timetag=datetime.datetime.now()
 refw,refh=512,512  # initial cross size
+first_frame=None # motion
+fps=0
+
 while True:
+    ######### #####  # framcounter :
+    if time.time()-framelastat>10.0:
+        fps=int(framecount*100.0)/1000
+        framecount=0
+        framelastat=time.time()
+    framecount+=1
+    ############## # ##### read CAMS
     for i in CAMS:
         #  fill the dictionary with frames
         if not vclist[i] is None:  # videocapture OK
@@ -529,34 +559,118 @@ while True:
                 #    SRC[1]="http://pi3:8088/?action=stream"
                 t=threading.Thread(target=worker, args=(i,) )
                 t.start()                 #worker( i )
-            
-    frame=construct_main_frame( vcframes ) # create frame
     ####################### NOW THE MAIN PICTURE IS CONSTRUCTED #########
+    frame=construct_main_frame( vcframes ) # create frame
     width,height=frame.shape[1],frame.shape[0]
+
+
+    ############# MOTION TRICKS 1
+    if args.motion:
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        gray = cv2.GaussianBlur(gray, (21, 21), 0)
+
+        
+    ########  FIRST FRAME INITIATIONS ####
     if first_run:
         logger.info( " First run - actual wxh= {}x{}".format( width,height) )
         first_run=False
-    ######================ GO WITH ALL TRICKS NOW ======================
+        print('i... init first')
+        if args.motion:
+            first_frame = gray
+            avg1 = np.float32( gray)
+            #fps = camera.get(cv2.CAP_PROP_FPS)
+            #print('i... FPS =', fps)
+            continue
 
+    ############# MOTION TRICKS 2
+    ALERT=False
+    if args.motion:
+        # if not static.....: next 2 lines
+        cv2.accumulateWeighted( np.float32(gray), avg1, alpha )
+        first_frame = cv2.convertScaleAbs(avg1)
+        frame_delta = cv2.absdiff(first_frame, gray)
+        thresh = cv2.threshold(frame_delta, 25, 255, cv2.THRESH_BINARY)[1]
+        # dilate the thresholded image to fill in holes, then find contours
+        # on thresholded image
+        thresh = cv2.dilate(thresh, None, iterations=3)
+        # Find Contours ###########
+        (cnts,_)=cv2.findContours( thresh.copy(),cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)[-2:]
+        logger.debug("CONTOURS FOUND: len(cnts)={}".format(len(cnts) ) )
+        # loop over the contours
+        maxwh=0
+        for c in cnts:
+            # if the contour is too small, ignore it
+            if cv2.contourArea(c) < 500:  # MIN_AREA 
+                continue
+ 
+            maxwh=maxwh+cv2.contourArea(c) # here it mean NO SAVE smalls
+            # compute the bounding box for the contour, draw it on the frame,
+            # and update the text
+            (x, y, w, h) = cv2.boundingRect(c)
+            ############# RECTANGLE
+#        cv2.rectangle(frame,
+#                      (x, y), (x + w, y + h),
+#                      (0, 255, 0),  # green
+#                      1,   # line thick
+#                      8 )  # line type =8
+            #
+            drawrect(frame,
+                      (x, y), (x + w, y + h),
+                      (0, 255, 0),  # green
+                      1,'dotted' )
+            # remove those with LARGE AREA
+        relax=relax-1
+        #print(relax, maxwh)
+        if relax<=0 and maxwh<MMAXWH and maxwh>0:  # low limit...
+            ALERT=True
+            #print('i... area',maxwh)
+            text = "ALERT {:7.0f}, {:3.0f} fps".format(maxwh,fps)
+            textcolor= (0, 0, 255) #RED
+            #textcolor= (0, 255,  0)
+            # COLOR   B G R
+            # 
+        elif relax>0:
+            text = "relax {:7.0f} {:3.0f} fps".format(maxwh,fps)
+            textcolor=(255, 255, 0)
+        elif maxwh>=MMAXWH:
+            text = "2MuCh {:7.0f} {:3.0f} fps".format(maxwh,fps)
+            textcolor=(0, 255, 255)
+            #alpha=0.01
+            relax=2*fps
+        else:
+            text ="       {:7.0f} {:3.0f} fps".format(maxwh,fps)
+            textcolor=(0, 255, 0)
+            #alpha=0.03
+
+        # draw the text and timestamp on the frame
+        cv2.rectangle(frame, (0, 0), (240, 27),(50, 50, 50), -1)
+
+        cv2.putText(frame, "{}".format(text), (10, 20),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, textcolor , 1) #thickness-last
+        locale.setlocale(locale.LC_ALL, "en_GB.UTF8")
+        if ALERT:
+            fname=get_save_filename()
+            put_date_on_frame( frame )
+            cv2.imwrite( fname ,frame )
+            logger.info("image saved to {}".format( fname ) ) 
+
+        ### HARDCODED =====================
+        ### PARAMETERS  AREA_MIN  500
+        ### RELAX TIME  2* FPS
+        ### MMAXWH      AREA_MAX  60000
+
+        
+    put_date_on_frame( frame )
     
-    ####### TEXT ON
-    text="{}".format(  datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S %a") )
-    #logger.debug( "{}  {:d}".format(text,monitor[0]) )
-    textcolor=(0,0,255)  # b g r
-    cv2.putText(frame, "{}".format(text), ( int(0),(int(height-10) ) ), cv2.FONT_HERSHEY_SIMPLEX, 0.6, textcolor , 1)
-
     
     ###### TIMELAPSE ################################ WE USE jpg (ALL?) RESET
-    if (datetime.datetime.now()-timelapse_time).seconds>timelapse_interval:
-        fname=os.path.expanduser( args.path_to_save+'/'+datetime.datetime.now().strftime("%Y%m%d_%a")+args.writename )
-        if not os.path.exists( fname ):
-            os.makedirs( fname )
-            
-        fname=fname+'/'+datetime.datetime.now().strftime("%Y%m%d_%H%M%S.jpg")
-        fname=fname.replace('//','/')
-        cv2.imwrite( fname ,frame )
+    ##### AND IMWRITE 
+    if ((datetime.datetime.now()-timelapse_time).seconds>timelapse_interval):
+        fname=get_save_filename()
+        cv2.imwrite( fname ,frame ) #####
         logger.info("image saved to {}".format( fname ) ) 
         timelapse_time=datetime.datetime.now()
+        #### This is a dirty trick for TIMELAPSE #### let reopen camera
         for i in CAMS:
             vclist[i]=None
             
