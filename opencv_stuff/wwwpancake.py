@@ -652,7 +652,7 @@ while True:
             fname=get_save_filename()
             put_date_on_frame( frame )
             cv2.imwrite( fname ,frame )
-            logger.info("image saved to {}".format( fname ) ) 
+            logger.info("S: {}".format( fname ) ) 
 
         ### HARDCODED =====================
         ### PARAMETERS  AREA_MIN  500
