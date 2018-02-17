@@ -27,7 +27,10 @@ RECONNECT_TIMEOUT=20
 ######################################
 parser=argparse.ArgumentParser(description="""
 webcam2.py -s 0 ... number of streams to take from ~/.webcam.source.
-""")
+""",
+usage='use "%(prog)s --help" for more information',
+ formatter_class=argparse.RawTextHelpFormatter
+)
 
 
 parser.add_argument('-a','--aiming',    action="store_true" , help='')
