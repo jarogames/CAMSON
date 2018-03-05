@@ -242,19 +242,36 @@ img_cross=np.zeros((512,512,4), np.uint8)
 def create_cross( ):  # if true = cross
     global img_cross
     img_cross=np.zeros((512,512,4), np.uint8)
-    img_cross=cv2.circle( img_cross, (255,255),255, (0,255,0,128),2)
-    img_cross=cv2.circle( img_cross, (255,255),128, (0,255,0,128),2)
-    img_cross=cv2.circle( img_cross, (255,255),64, (0,255,0,128), 2)
-    img_cross=cv2.line(img_cross,(0,255),(511,255),(0,255,0,128), 2)
-    img_cross=cv2.line(img_cross,(255,0),(255,511),(0,255,0,128), 2)
+    logger.debug( "...cross...{}".format(img_cross.shape[0])  )
+    img_cross1=cv2.circle(  img_cross, (255,255),255, (0,255,0,128),2)
+    if img_cross1 is None: ## debian9 python2.7 problem
+        return img_cross
+    else:
+        img_cross=img_cross1
+    logger.debug( "...cross...{}".format(img_cross.shape[0])  )
+    img_cross=cv2.circle(  img_cross, (255,255),128, (0,255,0,128),2)
+    logger.debug( "...cross...{}".format(img_cross.shape[0])  )
+    img_cross=cv2.circle(  img_cross, (255,255),64, (0,255,0,128), 2)
+    logger.debug( "...cross...{}".format(img_cross.shape[0])  )
+    img_cross=cv2.line(    img_cross, (0,255),(511,255),(0,255,0,128), 2)
+    logger.debug( "...cross...{}".format(img_cross.shape[0])  )
+    img_cross=cv2.line(    img_cross, (255,0),(255,511),(0,255,0,128), 2)
+    logger.debug( "...cross...{}".format(img_cross.shape[0])  )
     img_cross=cv2.rectangle(img_cross,(1,1),(510,510),(0,255,0,128), 3 )
+    logger.debug( "...cross.e...{}".format(img_cross.shape[0])  )
     return img_cross
     
 def create_rectangle( ):  # if true = cross
     global img_cross
     img_cross=np.zeros((512,512,4), np.uint8)
-    img_cross=cv2.rectangle(img_cross,(1,1),(510,510),(0,255,0,128), 3 )
+    img_cross1=cv2.rectangle(img_cross,(1,1),(510,510),(0,255,0,128), 3 )
+    if img_cross1 is None: ## debian9 python2.7 problem
+        return img_cross
+    else:
+        img_cross=img_cross1
+    logger.debug( "...rect2...{}".format( type(img_cross) )  )
     img_cross=cv2.rectangle(img_cross,(254,254),(256,256),(0,255,0,128), 3 )
+    logger.debug( "...rect.E..{}".format( type(img_cross) )  )
     return img_cross
 
 
@@ -409,7 +426,7 @@ def put_date_on_frame( frame ):
     textcolor=(0,0,255)  # b g r
     cv2.rectangle(frame, (0, height-30), (300, height),(50, 50, 50), -1)
     cv2.putText(frame, "{}".format(text), ( int(0),(int(height-10) ) ), cv2.FONT_HERSHEY_SIMPLEX, 0.6, textcolor , 1)
-    locale.setlocale(locale.LC_ALL, "en_GB.UTF8")
+    locale.setlocale(locale.LC_ALL, "en_US.UTF8")
     
         
 ####################################################
@@ -489,9 +506,14 @@ ctrl=1
 
 
 if args.aiming:
+    logger.debug("create cross")
     create_cross()
 else:
+    logger.debug("create rectangle")
     create_rectangle()
+#
+logger.debug( "  cross... {}".format( img_cross )  )
+logger.debug( "{}".format(img_cross.shape[0])  )
 w,h= img_cross.shape[1],img_cross.shape[0]
 #img_cross = cv2.resize(img_cross, ( int(w*0.7), int(h*0.7) ),interpolation = cv2.INTER_CUBIC)
 
@@ -650,7 +672,7 @@ while True:
 
         cv2.putText(frame, "{}".format(text), (10, 20),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, textcolor , 1) #thickness-last
-        locale.setlocale(locale.LC_ALL, "en_GB.UTF8")
+        locale.setlocale(locale.LC_ALL, "en_US.UTF8")
         if ALERT:
             fname=get_save_filename()
             put_date_on_frame( frame )
