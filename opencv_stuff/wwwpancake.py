@@ -44,7 +44,7 @@ parser.add_argument('-m','--motion',  action="store_true")
 parser.add_argument('-p','--path_to_save',  default="~/.motion/", help='')
 parser.add_argument('-r','--rectangle', action="store_true" , help='')
 parser.add_argument('-s','--streams',  default="1", help='take LISTED lines from .webcam.source')
-parser.add_argument('-t','--timelapse',  default='99999999',  help='') # type=int
+parser.add_argument('-t','--timelapse',  default='99999999',  help=' value OR value,reconnect_time(still pics)') # type=int
 
 parser.add_argument('-n','--noshow',  action="store_true", help='dont create, show window, waitkey')
 parser.add_argument('-w','--writename', default="", help='attach (write) a name in saved (timelapse) jpg ')
@@ -696,8 +696,10 @@ while True:
         logger.info("image saved to {}".format( fname ) ) 
         timelapse_time=datetime.datetime.now()
         #### This is a dirty trick for TIMELAPSE #### let reopen camera
-        for i in CAMS:
-            vclist[i]=None
+        ####  ... probably the case of still picture, but nonsense if stream!
+        if timelapse_wait>0.01: ### added2018/03/05: streams will not reconnect
+            for i in CAMS:
+                vclist[i]=None
             
     ####### Cross or rectangle #######################
     if len(refPt) == 2:  #  mouse click =========
