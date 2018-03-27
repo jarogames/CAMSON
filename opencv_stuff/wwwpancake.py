@@ -433,14 +433,14 @@ for i in CAMS:
 # vc list : VideoCapture Streams 
 vclist={}   # vc object
 #vcframes={} # frame .... dict doesnt know ordering
-####  vcframes ... correspondig pictures
+####  vcframes ... correspondig pictures. ordered dict is best
 vcframes=collections.OrderedDict()  # yes, works 
 
 
 
 ##############################
 # initialize VideoCapture, get 1st picture
-#     better do with worker
+#         better do with worker
 ##############################
 for i in CAMS:
     vc=cv2.VideoCapture( SRC[i]  )
