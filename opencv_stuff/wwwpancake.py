@@ -44,7 +44,7 @@ parser.add_argument('-m','--motion',  action="store_true")
 parser.add_argument('-p','--path_to_save',  default="~/.motion/", help='')
 parser.add_argument('-r','--rectangle', action="store_true" , help='')
 parser.add_argument('-s','--streams',  default="1", help='take LISTED lines from .webcam.source')
-parser.add_argument('-t','--timelapse',  default='99999999',  help='') # type=int
+parser.add_argument('-t','--timelapse',  default='99999999',  help=' value OR value,reconnect_time(still pics)') # type=int
 
 parser.add_argument('-n','--noshow',  action="store_true", help='dont create, show window, waitkey')
 parser.add_argument('-w','--writename', default="", help='attach (write) a name in saved (timelapse) jpg ')
@@ -85,7 +85,6 @@ formatter = LogFormatter(fmt=log_format,datefmt='%Y-%m-%d %H:%M:%S')
 logfile=os.path.splitext(os.path.basename(sys.argv[0]) )[0]+'.log'
 logger = setup_logger( name="main",logfile=logfile, level=loglevel,formatter=formatter )#to 1-50
 
-logger.info('Starting webcam2.py')
 
 #########################################
 #
@@ -101,12 +100,12 @@ def monitor_size():
     return wihe
 
 
-def load_source():
+def load_source( configfile ):
     '''
     Read the stream source from ~/.webcam.source
     '''
     #home = expanduser("~")
-    home = os.path.expanduser( args.config )
+    home = os.path.expanduser(configfile )
     with open( home ) as f:
 #    with open( home+'/.webcam.source') as f:
         SRC=f.readlines()
@@ -242,19 +241,36 @@ img_cross=np.zeros((512,512,4), np.uint8)
 def create_cross( ):  # if true = cross
     global img_cross
     img_cross=np.zeros((512,512,4), np.uint8)
-    img_cross=cv2.circle( img_cross, (255,255),255, (0,255,0,128),2)
-    img_cross=cv2.circle( img_cross, (255,255),128, (0,255,0,128),2)
-    img_cross=cv2.circle( img_cross, (255,255),64, (0,255,0,128), 2)
-    img_cross=cv2.line(img_cross,(0,255),(511,255),(0,255,0,128), 2)
-    img_cross=cv2.line(img_cross,(255,0),(255,511),(0,255,0,128), 2)
+    logger.debug( "...cross...{}".format(img_cross.shape[0])  )
+    img_cross1=cv2.circle(  img_cross, (255,255),255, (0,255,0,128),2)
+    if img_cross1 is None: ## debian9 python2.7 problem
+        return img_cross
+    else:
+        img_cross=img_cross1
+    logger.debug( "...cross...{}".format(img_cross.shape[0])  )
+    img_cross=cv2.circle(  img_cross, (255,255),128, (0,255,0,128),2)
+    logger.debug( "...cross...{}".format(img_cross.shape[0])  )
+    img_cross=cv2.circle(  img_cross, (255,255),64, (0,255,0,128), 2)
+    logger.debug( "...cross...{}".format(img_cross.shape[0])  )
+    img_cross=cv2.line(    img_cross, (0,255),(511,255),(0,255,0,128), 2)
+    logger.debug( "...cross...{}".format(img_cross.shape[0])  )
+    img_cross=cv2.line(    img_cross, (255,0),(255,511),(0,255,0,128), 2)
+    logger.debug( "...cross...{}".format(img_cross.shape[0])  )
     img_cross=cv2.rectangle(img_cross,(1,1),(510,510),(0,255,0,128), 3 )
+    logger.debug( "...cross.e...{}".format(img_cross.shape[0])  )
     return img_cross
     
 def create_rectangle( ):  # if true = cross
     global img_cross
     img_cross=np.zeros((512,512,4), np.uint8)
-    img_cross=cv2.rectangle(img_cross,(1,1),(510,510),(0,255,0,128), 3 )
+    img_cross1=cv2.rectangle(img_cross,(1,1),(510,510),(0,255,0,128), 3 )
+    if img_cross1 is None: ## debian9 python2.7 problem
+        return img_cross
+    else:
+        img_cross=img_cross1
+    logger.debug( "...rect2...{}".format( type(img_cross) )  )
     img_cross=cv2.rectangle(img_cross,(254,254),(256,256),(0,255,0,128), 3 )
+    logger.debug( "...rect.E..{}".format( type(img_cross) )  )
     return img_cross
 
 
@@ -327,7 +343,9 @@ def worker( num ): # REASSIGN CV IN CASE OF TCP PROBLEMS
     else:
         logger.info("  Reconnected from worker SRC={} ".format(SRC[num]) )
         vclist[num]=vc
-
+        rvalb,frameb=vclist[num].read()
+        #hashnow=sum(frameb).tostring() # not needed.. change is needed
+        #vcframes_hash[num]=hashnow
 
 
 
@@ -409,7 +427,7 @@ def put_date_on_frame( frame ):
     textcolor=(0,0,255)  # b g r
     cv2.rectangle(frame, (0, height-30), (300, height),(50, 50, 50), -1)
     cv2.putText(frame, "{}".format(text), ( int(0),(int(height-10) ) ), cv2.FONT_HERSHEY_SIMPLEX, 0.6, textcolor , 1)
-    locale.setlocale(locale.LC_ALL, "en_GB.UTF8")
+    locale.setlocale(locale.LC_ALL, "en_US.UTF8")
     
         
 ####################################################
@@ -417,6 +435,8 @@ def put_date_on_frame( frame ):
 ##################################################
 #
 ##############################
+logger.info('Starting webcam2.py')
+
 monitor=monitor_size()
 logger.info('  Monitor '+str(monitor) )
 #print( monitor )
@@ -424,7 +444,12 @@ vclist=[]
 
 
 ####################### LOAD CONFIG ############
-SRC=load_source()
+
+logger.info('config file =   '+args.config )
+SRC=load_source(args.config)
+
+logger.info('args streams = '+" ".join(args.streams) )
+
 CAMS=get_list_of_sources(args.streams)  # THIS CONTAINS THE
 #print("i... CAMS",CAMS)
 logger.info("CAMS  {}".format(CAMS) )
@@ -433,16 +458,20 @@ for i in CAMS:
 # vc list : VideoCapture Streams 
 vclist={}   # vc object
 #vcframes={} # frame .... dict doesnt know ordering
-####  vcframes ... correspondig pictures
-vcframes=collections.OrderedDict()  # yes, works 
 
+
+####  vcframes ... correspondig pictures. ordered dict is best
+vcframes=collections.OrderedDict()  # yes, works 
+# -- -- pic should be checked if stalled- store hash
+vcframes_hash=collections.OrderedDict() 
 
 
 ##############################
 # initialize VideoCapture, get 1st picture
-#     better do with worker
+#         better do with worker
 ##############################
 for i in CAMS:
+    vcframes_hash[i]="init"
     vc=cv2.VideoCapture( SRC[i]  )
     if not vc.isOpened(): # try to get the first frame
         vc=None
@@ -454,6 +483,7 @@ for i in CAMS:
         rvalb,frameb=vclist[i].read()
         if rvalb:
             vcframes[i]=frameb
+            vcframes_hash[i]="init"
         else:
             vcframes[i]=img_black+ i*10+60
             vclist[i]=None
@@ -489,9 +519,14 @@ ctrl=1
 
 
 if args.aiming:
+    logger.debug("create cross")
     create_cross()
 else:
+    logger.debug("create rectangle")
     create_rectangle()
+#
+logger.debug( "  cross... {}".format( img_cross )  )
+logger.debug( "{}".format(img_cross.shape[0])  )
 w,h= img_cross.shape[1],img_cross.shape[0]
 #img_cross = cv2.resize(img_cross, ( int(w*0.7), int(h*0.7) ),interpolation = cv2.INTER_CUBIC)
 
@@ -509,6 +544,7 @@ if len(timelapse_list)>1:
     if timelapse_interval<timelapse_wait*2:
         logger.error("timelapse interval not good with reconnect time - QUIT ")
         quit()
+logger.info("Timelapse - wait interval {:f} s ".format(timelapse_wait) )
 
 
     
@@ -528,6 +564,7 @@ refw,refh=512,512  # initial cross size
 first_frame=None # motion
 fps=0
 
+
 while True:
     ######### #####  # framcounter :
     if time.time()-framelastat>10.0:
@@ -544,6 +581,19 @@ while True:
                 logger.debug("read() CAM={}  return={}".format(i, rvalb) )
             if rvalb:
                 vcframes[i]=frameb
+                #vcframes_hash[i]=sum(sum(sum(frameb)))
+                #logger.info( vcframes_hash[i])
+                #vcframes_hash[i]=sum(sum(frameb))
+                if vcframes_hash[i]!="init":
+                    hashnow=sum(frameb).tostring()
+                    if vcframes_hash[i]==hashnow:
+                        logger.info(" NO DIFF in HASHES/ STALL detect "+str(hashnow)[0:10]+" "+str(vcframes_hash[i])[0:10] )
+                        vclist[i]=None
+                else:
+                    logger.info("Init hash")
+                    hashnow=sum(frameb).tostring()
+                    vcframes_hash[i]=hashnow
+                    logger.info( str(vcframes_hash[i][0:10]) )
             ###========= THIS I REMOVED. JPG ARE OK NOW>..    !!!!
             ###   ====== evidently  - pic stall can appear...
             #else:
@@ -557,7 +607,7 @@ while True:
                 timetag=datetime.datetime.now()
                 #### re-assign
                 #reco=reco+1 # TEST REASSIGN - looses 3 seconds every x seconds
-                logger.debug("RECONNECT {}".format(i) )
+                logger.info("RECONNECT (every {} s.)   CAM {}".format(RECONNECT_TIMEOUT,i) )
                 #if reco>3:
                 #    SRC[1]="http://pi3:8088/?action=stream"
                 t=threading.Thread(target=worker, args=(i,) )
@@ -650,7 +700,7 @@ while True:
 
         cv2.putText(frame, "{}".format(text), (10, 20),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, textcolor , 1) #thickness-last
-        locale.setlocale(locale.LC_ALL, "en_GB.UTF8")
+        locale.setlocale(locale.LC_ALL, "en_US.UTF8")
         if ALERT:
             fname=get_save_filename()
             put_date_on_frame( frame )
@@ -674,8 +724,10 @@ while True:
         logger.info("image saved to {}".format( fname ) ) 
         timelapse_time=datetime.datetime.now()
         #### This is a dirty trick for TIMELAPSE #### let reopen camera
-        for i in CAMS:
-            vclist[i]=None
+        ####  ... probably the case of still picture, but nonsense if stream!
+        if timelapse_wait>0.01: ### added2018/03/05: streams will not reconnect
+            for i in CAMS:
+                vclist[i]=None
             
     ####### Cross or rectangle #######################
     if len(refPt) == 2:  #  mouse click =========
