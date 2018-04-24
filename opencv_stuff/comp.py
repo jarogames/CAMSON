@@ -1,5 +1,8 @@
 #!/usr/bin/python3
-
+###########################
+#
+# some example from inet
+###########################
 import cv2
 import sys
 import os.path

@@ -1,8 +1,29 @@
+#!/usr/bin/python3
+
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
-img2 = cv2.imread('heatpic.jpg',0)          # queryImage
-img1 = cv2.imread('zen.jpg',0) # trainImage
+
+import argparse
+parser=argparse.ArgumentParser(description="""
+./orbmatch.py   heatpic.jpg zen.jpg
+
+COMPARES PICTURES by Features (ORB) and looks for zen in heatpic
+""",usage='use "%(prog)s --help" for more information',
+ formatter_class=argparse.RawTextHelpFormatter)
+
+parser.add_argument('-d','--debug', action='store_true' , help='')
+#parser.add_argument('input', metavar='IN',   nargs='+',help='')
+parser.add_argument('input' ,   help='')
+parser.add_argument('output',   help='')
+args=parser.parse_args()
+#print( args.input, args.output)
+
+img2 = cv2.imread( args.input  ,0)          # queryImage
+img1 = cv2.imread( args.output ,0) # trainImage
+if (img2==None)or(img1==None):
+    print("X... cannot read image(s)")
+    quit()
 # Initiate ORB detector
 orb = cv2.ORB_create()
 # find the keypoints and descriptors with ORB
