@@ -353,6 +353,7 @@ function testvids(){
 		    YCAMS=$YCAMS'\|046d:0825'   #  my zoomcam ZD
 		    YCAMS=$YCAMS'\|04f2:a133'   # chicony-lidl-vakl
 		    YCAMS=$YCAMS'\|0458:708c'   # this is wide angle Genius Widecam F100
+		    YCAMS=$YCAMS'\|0458:7097'   # new genius FaceCam2020
 		    echo $modve | grep $YCAMS >/dev/null
 		    if [ "$?" = "0" ];then
 			yuv="-y"
