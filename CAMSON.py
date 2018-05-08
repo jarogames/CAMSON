@@ -108,6 +108,7 @@ text_event %Y%m%d%H%M%S
 text_double on
 
 
+#target_dir /home/USER/.motion/motioncamXXX_DDDD
 target_dir /home/USER/.motion/motioncamXXX
 
 snapshot_filename %Y%m%d_%H%M%S-snapshot-%v
@@ -130,7 +131,7 @@ webcontrol_localhost on
 webcontrol_html_output on
 
 quiet off
-on_motion_detected echo MOTION DETECTED XXX
+on_motion_detected nczmq.py -t 192.168.0.117:5678,192.168.0.20:5678 -m motion_detected
 """
 
 
@@ -264,7 +265,7 @@ def run_all_cams( ):
         motionconf="/tmp/"+motionname+".conf"
         MOTION_CONFIG_TMP=MOTION_CONFIG.replace("XXX", str(port) )
         MOTION_CONFIG_TMP=MOTION_CONFIG_TMP.replace("USER",  os.getenv('USER')  )
-        #MOTION_CONFIG_TMP=MOTION_CONFIG_TMP.replace("PPPP",  str(port)  )
+        #MOTION_CONFIG_TMP=MOTION_CONFIG_TMP.replace("DDDD",  datetime.datetime.now().strftime("%Y%m%d")  )
         with open( motionconf, "w") as f:
             f.write( MOTION_CONFIG_TMP )
         CMM="motion -c "+motionconf
@@ -396,7 +397,8 @@ while True:
         port=PORT_START
         for p in range( nlen ):
             dirs=os.path.expanduser("~/.motion/motioncam"+str(port) )
-            print( "\n  ",dirs," : ",port,int(get_size( dirs  )/1024/1024), " MB " )
+            size=int(get_size( dirs  )/1024/1024)
+            print( "\n  ",dirs," : ",port,   size, " MB " )
             port=port+1
 
 
