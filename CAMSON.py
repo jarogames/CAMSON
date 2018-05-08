@@ -391,12 +391,13 @@ while True:
         kill_screens( SCREENS, MOTIONS )
         print("R... videos {} != screens {} running all cameras".format( len(vfinal),nlen ) )
         SCREENS,MOTIONS=run_all_cams()
-    port=PORT_START
     time.sleep(5)
-    if loops % 12==0:
+    if (loops % 12)==0:
+        port=PORT_START
         for p in range( nlen ):
             dirs=os.path.expanduser("~/.motion/motioncam"+str(port) )
-            print( "\n   size ",port,int(get_size( dirs  )/1024/1024), " MB " )
+            print( "\n  ",dirs," : ",port,int(get_size( dirs  )/1024/1024), " MB " )
+            port=port+1
 
 
 ################################
