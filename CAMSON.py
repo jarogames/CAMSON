@@ -38,7 +38,7 @@ framerate 3
 minimum_frame_time 0
 
 
-netcam_url http://127.0.0.1:8080/?action=stream
+netcam_url http://127.0.0.1:XXX/?action=stream
 netcam_userpass ojr:ojrojr
 
 netcam_keepalive on
@@ -134,6 +134,14 @@ on_motion_detected echo MOTION DETECTED XXX
 """
 
 
+
+def get_size(start_path = '.'):
+    total_size = 0
+    for dirpath, dirnames, filenames in os.walk(start_path):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            total_size += os.path.getsize(fp)
+    return total_size
 
 
 
@@ -256,6 +264,7 @@ def run_all_cams( ):
         motionconf="/tmp/"+motionname+".conf"
         MOTION_CONFIG_TMP=MOTION_CONFIG.replace("XXX", str(port) )
         MOTION_CONFIG_TMP=MOTION_CONFIG_TMP.replace("USER",  os.getenv('USER')  )
+        #MOTION_CONFIG_TMP=MOTION_CONFIG_TMP.replace("PPPP",  str(port)  )
         with open( motionconf, "w") as f:
             f.write( MOTION_CONFIG_TMP )
         CMM="motion -c "+motionconf
@@ -363,7 +372,9 @@ WEBSITE="/home/mraz/02_GIT/ALL/CAMSON/www/"
 RESOL="640x480"
 SCREENS=[]  # to be filled now
 MOTIONS=[]
+loops=0
 while True:
+    loops=loops+1
     nscreens=count_screens()
     nlen=len(nscreens)
     now=datetime.datetime.now()
@@ -380,7 +391,13 @@ while True:
         kill_screens( SCREENS, MOTIONS )
         print("R... videos {} != screens {} running all cameras".format( len(vfinal),nlen ) )
         SCREENS,MOTIONS=run_all_cams()
+    port=PORT_START
     time.sleep(5)
+    if loops % 12==0:
+        for p in range( nlen ):
+            dirs=os.path.expanduser("~/.motion/motioncam"+str(port) )
+            print( "\n   size ",port,int(get_size( dirs  )/1024/1024), " MB " )
+
 
 ################################
 #  loop to verify the cams==videos
