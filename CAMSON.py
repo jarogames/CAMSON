@@ -131,7 +131,7 @@ webcontrol_localhost on
 webcontrol_html_output on
 
 quiet off
-on_motion_detected nczmq.py -t 192.168.0.117:5678,192.168.0.20:5678 -m motion_detected
+on_motion_detected nczmq.py -t 192.168.0.117:5678,192.168.0.20:5678 -m motion_detected_on_XXX
 """
 
 
@@ -398,7 +398,7 @@ while True:
         for p in range( nlen ):
             dirs=os.path.expanduser("~/.motion/motioncam"+str(port) )
             size=int(get_size( dirs  )/1024/1024)
-            print( "\n  ",dirs," : ",port,   size, " MB " )
+            print( "    ",dirs," : ",port,   size, " MB " )
             port=port+1
 
 
