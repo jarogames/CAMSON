@@ -249,7 +249,7 @@ def run_all_cams( ):
         motionname='myservice_mjMO'+str(port)
         motionconf="/tmp/"+motionname+".conf"
         MOTION_CONFIG_TMP=MOTION_CONFIG.replace("XXX", str(port) )
-        MOTION_CONFIG_TMP=MOTION_CONFIG.replace("USER",  os.getenv('USER')  )
+        MOTION_CONFIG_TMP=MOTION_CONFIG_TMP.replace("USER",  os.getenv('USER')  )
         with open( motionconf, "w") as f:
             f.write( MOTION_CONFIG_TMP )
         CMM="motion -c "+motionconf
