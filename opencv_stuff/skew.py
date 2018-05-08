@@ -2,23 +2,39 @@
 
 import cv2
 import numpy as np
+import argparse
+
+parser=argparse.ArgumentParser(description="""
+./skew.py   heatpic.jpg 
+
+COMPARES PICTURES by Features (ORB) and looks for zen in heatpic
+""",usage='use "%(prog)s --help" for more information',
+ formatter_class=argparse.RawTextHelpFormatter)
+
+parser.add_argument('-d','--debug', action='store_true' , help='')
+parser.add_argument('input'  ,   help='')
+parser.add_argument('output' , nargs="?",  help='')
+args=parser.parse_args()
 
 
 #this is the method to define a mouse callback function. Several events are given in OpenCV documentation
 def my_mouse_callback(event,x,y,flags,param):
     global xylist
     if event == cv2.EVENT_LBUTTONDOWN:
-	print( x,y)
+        print( x,y)
         xylist.append(  (x,y) )
-	#text="{0},{1}".format(x,y)
-	#cv.PutText(im,text,(x+5,y+5),f,cv.RGB(0,255,255))
+        #text="{0},{1}".format(x,y)
+        #cv.PutText(im,text,(x+5,y+5),f,cv.RGB(0,255,255))
 
 ###########MAIN####
 
 
 
 xylist=[]
-img = cv2.imread('heatpic.jpg')
+img = cv2.imread( args.input )
+if img==None:
+    print("X... cannot read picture",args.input)
+    quit()
 cv2.imshow("Display",img)
 
 #im=cv2.CreateImage((400,400),cv.CV_8UC3,1)
@@ -64,5 +80,9 @@ pts2 = np.float32(
 M = cv2.getPerspectiveTransform(pts1,pts2)
 dst = cv2.warpPerspective(img, M, (cols, rows))
 cv2.imshow('My Zen Garden', dst)
-cv2.imwrite('zen.jpg', dst)
+if args.output!=None:
+    print( "i... saving picture", args.output )
+    cv2.imwrite( args.output , dst)
+else:
+    print("-... saving nothing")
 cv2.waitKey()
