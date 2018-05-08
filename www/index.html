@@ -5,152 +5,314 @@
     <title>MJPG-streamer</title>
     <meta http-equiv="content-type" content="text/html; charset=iso-8859-1" />
     <link rel="stylesheet" href="style.css" type="text/css" />
+    <script type="text/javascript" src="jquery.js"></script>    
+    <script type="text/javascript" src="jquery.rotate.js"></script>
     <!--[if IE 6]>
     <link rel="stylesheet" href="fix.css" type="text/css" />
     <![endif]-->
-    <script type="text/javascript">
 
-      /* Copyright (C) 2007 Richard Atterer, richard©atterer.net
-       * This program is free software; you can redistribute it and/or modify it
-       * under the terms of the GNU General Public License, version 2. See the file
-       * COPYING for details.
-       */
 
-      var imageNr = 0; // Serial number of current image
-      var finished = new Array(); // References to img objects which have finished downloading
-      var paused = false;
-      var previous_time = new Date();
-      var fNi = 0, msAvg = 0, fpsAvg = 0, fcnt = 0, fN = 80, msa = [], wsize = 4;
 
-      function createImageLayer() {
-        var img = new Image();
-        img.style.position = "absolute";
-        img.style.zIndex = -1;
-        img.onload = imageOnload;
-        img.onclick = imageOnclick;
-        img.width = 512;
-        img.height = 384;
-        img.src = "/?action=snapshot&n=" + (++imageNr);
-        var webcam = document.getElementById("webcam");
-		window.info = document.getElementById('info').firstChild;
-		window.ravgFps = document.getElementById('ravgfps').firstChild;
-		window.ravgMs = document.getElementById('ravgms').firstChild;
-		webcam.insertBefore(img, webcam.firstChild);
-		document.getElementById('fN').firstChild.nodeValue = fN;
-      }
+    
+   <script type="text/javascript" src="jquery.ui.core.min.js"></script>    
+    <script type="text/javascript" src="jquery.ui.widget.min.js"></script>    
+    <script type="text/javascript" src="jquery.ui.tabs.min.js"></script>    
+    <link type="text/css" rel="stylesheet" href="JQuerySpinBtn.css" />
+    <script type="text/javascript" src="JQuerySpinBtn.js"></script>    
+	<script type="text/javascript">
+	$(function() {
+		$("#tabs").tabs();
+	});
 	
+	$(document).ready(function() {
+		//top.resizeTo($(window).width(), $(document).height() + (top.outerHeight - $(window).height()));
+	});
+	</script>
 
-	function runningAvgs (delta) {
-		// delta is the measured frame period
-		var len;
-		if (fcnt < fN) {
 
-			fcnt++;
-			// we need to populate the sample array
-			msa.push(delta);
-			// calculate average period so far
-			msAvg += (delta - msAvg) / fcnt;
-			
-		} else {
-			/*
-				running average (fN samples) according to the formula:
-				rAvg = rAvg - value_fN_samples_back / fN + newest_value / fN
-			*/
-			msAvg += (delta - msa[0])/fN;
-			// drop oldest ms value, msa[0]
-			msa = msa.slice(1);
-			// append newest value, delta
-			msa.push(delta);
-		}
-		// calculate average fps
-		fpsAvg = 1000 / msAvg;
-		/*
-			once every fN frames, check if we need to adjust the averaging window
-			since faster rates seem to need more samples to reach a stable(er) readout
-		*/
-		if (++fNi == fN) {
 
-			fNi = 0;
-			// new window size
-			fN = parseInt(fpsAvg * wsize);
-			len = fcnt - fN;
-			// if our sample array, msa, has extra samples, then trim it to the new size
-			if (len > 0) {
 
-				// adjust averaging window (nr of samples)
-				msa = msa.splice(len);
-				// avoid populating the sample array again
-				fcnt = fN;
-			}
-		}
+
+
+	
+    
+    <script type="text/javascript">
+    
+    var phi = 0, flipped = 0, mirrored = 0;
+
+	function setXformClass () {
+		$('.xform').each(function(idx,el) {
+			el.className = "xform x" +(flipped ? "-flipped":"") + (mirrored ? "-mirrored" : "") + "-rotated-" + phi;
+		});
 	}
-
-      // Two layers are always present (except at the very beginning), to avoid flicker
-      function imageOnload() {
-        this.style.zIndex = imageNr; // Image finished, bring to front!
-        while (1 < finished.length) {
-          var del = finished.shift(); // Delete old image(s) from document
-          del.parentNode.removeChild(del);
-        }
-        finished.push(this);
-        current_time = new Date();
-        delta = current_time.getTime() - previous_time.getTime();
-        fps   = (1000.0 / delta).toFixed(1);
-		runningAvgs(delta);
-        info.nodeValue = delta + " ms (" + fps + " fps)";
-		ravgFps.nodeValue = fpsAvg.toFixed(1);
-		ravgMs.nodeValue = msAvg.toFixed(0);
-		previous_time = current_time;
-        if (!paused) createImageLayer();
-      }
-
-      function imageOnclick() { // Clicking on the image will pause the stream
-        paused = !paused;
-        if (!paused) createImageLayer();
-      }
-
-    </script>
+    $(document).ready(function() {
+		// set rotation angle phi and toggle rotate class
+		$('#rotate').click(function() {
+			phi = (phi + 90) % 360;
+			setXformClass();
+			if (phi % 180) {
+				$('.xform-p').addClass('rotated');
+			} else {
+				$('.xform-p').removeClass('rotated');
+			}
+		});
+		// toggle mirror class component
+		$('#mirror').click(function() {
+			mirrored = ! mirrored;
+			setXformClass();
+		});
+		// toggle flip class component
+		$('#flip').click(function() {
+			flipped = ! flipped;
+			setXformClass();
+		});
+	});
+	</script>
   </head>
 
-  <body onload="createImageLayer();">
-    <div id="sidebar">
-      <h1>
-	<a href="http://p34:8080/javascript.html">0</a>
-	<a href="http://p34:8081/javascript.html">1</a>
-	<a href="http://p34:8082/javascript.html">2</a>
-	<a href="http://p34:8083/javascript.html">3</a>
-	<a href="http://p34:8088/javascript.html">8</a>
-      </h1>
+  <body>
+    <script type="text/javascript">  
+    		
+		function setControl(dest, plugin, id, group, value) {
+          $.get('/?action=command&dest=' +		dest +
+          						'&plugin=' +	plugin+
+          						'&id='+ 		id + 
+          						'&group='+ 		group + 
+          						'&value=' +		value );
+        }
 
-      <div id="menu">
-        <a  href="home.html">Static</a>
-        <a class="active" href="javascript.html">Javascript.</a>
-        <a href="stream.html">Stream</a>
-        <!--a href="java.html">Java</a-->
-        <!--a href="videolan.html">VideoLAN</a-->
+        function setControl_bool(dest, plugin, id, group, value) {
+          if (value == false)
+            setControl(dest, plugin, id, group, 0);
+          else
+            setControl(dest, plugin, id, group, 1);
+        }
+
+        function setControl_string(dest, plugin, id, group, value) {
+          if (value.length < minlength) {
+            alert("The input string has to be least"+minlength+" characters!");
+            return;
+          }
+          $.get('/?action=command&dest=' +		dest +
+          						'&plugin=' +	plugin+
+          						'&id='+ 		id + 
+          						'&group='+ 		group + 
+          						'&value=' +		value , 
+			function(data){
+             alert("Data Loaded: " + data);
+           });
+        }
+                        
+        function setResolution(plugin, controlId, group, value) {
+	        $.get('/?action=command&dest=0'	+		// resolution command always goes to the input plugin
+					'&plugin=' +	plugin+
+					'&id'+ 			controlId + 
+					'&group=1'	+					// IN_CMD_RESOLUTION == 1,		
+					'&value=' +		value, 
+				function(data){
+				     if (data == 0) {
+				     	$("#statustd").text("Success");
+				     } else {
+				     	$("#statustd").text("Error: " + data);
+				     }
+		        }
+	        );
+        }
+                
+        function addControl(plugin_id, suffix) {
+        var dest = suffix=="in"?0:1;
+        $.getJSON(suffix+"put_"+plugin_id+".json",
+          function(data) {
+            $.each(data.controls, function(i,item){
+              $('<tr/>').attr("id", "tr_"+suffix+"_"+plugin_id+"_"+item.group+"_"+item.id).appendTo("#controltable_"+suffix+"-"+plugin_id);
+              // BUTTON type controls does not have a label 
+              if (item.type == 4) {
+                $("<td/>").appendTo("#tr-"+item.id);
+              } else {
+                if (item.type == 6) { // Class type controls
+                  $("<td/>").text(item.name).attr("style", "font-weight:bold;").appendTo("#tr_"+suffix+"_"+plugin_id+"_"+item.group+"_"+item.id);
+                  return;
+                } else {
+                  $("<td/>").text(item.name).appendTo("#tr_"+suffix+"_"+plugin_id+"_"+item.group+"_"+item.id);
+                }
+              }
+
+              $("<td/>").attr("id", "td_ctrl_"+suffix+"_"+plugin_id+"_"+item.group+"-"+item.id)
+              	.appendTo("#tr_"+suffix+"_"+plugin_id+"_"+item.group+"_"+item.id);
+              if((item.type == 1) || (item.type == 5)) { // integer type controls
+                if ((item.id == 10094852) && (item.group == 1) && (item.dest == 0)) { //V4L2_CID_PAN_RELATIVE
+				  $("<button/>")
+                  .attr("type", "button")
+                  .attr("style", "width: 50%; height: 100%;")
+                  .text("<")
+                  .click(function(){setControl(dest, plugin_id, item.id, item.group, 200);})
+                  .appendTo("#td_ctrl_"+suffix+"_"+plugin_id+"_"+item.group+"-"+item.id);
+                  $("<button/>")
+                  .attr("type", "button")
+                  .attr("style", "width: 50%; height: 100%;")
+                  .text(">")
+                  .click(function(){setControl(dest, plugin_id, item.id, item.group, -200);})
+                  .appendTo("#td_ctrl_"+suffix+"_"+plugin_id+"_"+item.group+"-"+item.id);
+                } else if ((item.id == 10094853) && 
+                		   (item.group == 1) && 
+                		   (item.dest == 0)){ // V4L2_CID_TILT_RELATIVE
+        		   $("<button/>")
+                  .attr("type", "button")
+                  .attr("style", "width: 50%; height: 100%;")
+                  .text("^")
+                  .click(function(){setControl(dest, plugin_id, item.id, item.group, -200);})
+                  .appendTo("#td_ctrl_"+suffix+"_"+plugin_id+"_"+item.group+"-"+item.id);
+                  $("<button/>")
+                  .attr("type", "button")
+                  .attr("style", "width: 50%; height: 100%;")
+                  .text("x")
+                  .click(function(){setControl(dest, plugin_id, item.id, item.group, 200);})
+                  .appendTo("#td_ctrl_"+suffix+"_"+plugin_id+"_"+item.group+"-"+item.id);
+                } else { // another non spec control
+                    var options = {min: item.min, max: item.max, step: item.step,}
+		            $("<input/>")
+		              .attr("value", item.value)
+		              .attr("id", "spinbox-"+item.id)
+		              .SpinButton(options)
+		              .bind("valueChanged", function() {setControl(dest, plugin_id, item.id, item.group, $(this).val());})
+		              .appendTo("#td_ctrl_"+suffix+"_"+plugin_id+"_"+item.group+"-"+item.id);
+                } 
+              } else if (item.type == 2) { // boolean type controls
+                if (item.value == "1")
+                  $("<input/>")
+                    .attr("type", "checkbox")
+                    .attr("checked", "checked")
+                    .change(function(){setControl_bool(dest, plugin_id, item.id, item.group, ($(this).attr("checked")?1:0));})
+		            .appendTo("#td_ctrl_"+suffix+"_"+plugin_id+"_"+item.group+"-"+item.id);
+                else
+                  $("<input/>")
+                    .attr("type", "checkbox")
+                    .change(function(){setControl_bool(dest, plugin_id, item.id, item.group, ($(this).attr("checked")?1:0));})
+                    .appendTo("#td_ctrl_"+suffix+"_"+plugin_id+"_"+item.group+"-"+item.id);
+              } else if (item.type == 7) { // string type controls
+                  $("<input/>").attr("value", item.value).appendTo("#td_ctrl_"+suffix+"_"+plugin_id+"_"+item.group+"-"+item.id);
+              } else if (item.type == 3) { // menu
+                $("<select/>")
+                  .attr("name", "select-"+item.id)
+                  .attr("id", "menu-"+item.id)
+                  .attr("style", "width: 100%;")
+                  .change(function(){setControl(dest, plugin_id, item.id, item.group, $(this).val());})
+                  .appendTo("#td_ctrl_"+suffix+"_"+plugin_id+"_"+item.group+"-"+item.id);
+                $.each(item.menu, function(val, text) {
+                    if (item.value == val) {
+                      $("#menu-"+item.id).append($('<option></option>').attr("selected", "selected").val(val).html(text));
+                    } else {
+                      $("#menu-"+item.id).append($('<option></option>').val(val).html(text));
+                    }
+                });
+              } else if (item.type == 4) { // button type
+                $("<button/>")
+                  .attr("type", "button")
+                  .attr("style", "width: 100%; height: 100%;")
+                  .text(item.name)
+                  .click(function(){setControl(dest, plugin_id, item.id, item.group, 0);})
+                  .appendTo("#td_ctrl_"+suffix+"_"+plugin_id+"_"+item.group+"-"+item.id);
+              } else if (item.type == 7) { // string  type
+                $("<input/>")
+                    .attr("type", "text")
+                    .attr("maxlength", item.max)
+                    .change(function(){setControl_string(dest, plugin_id, item.id, item.group, $(this).text());})
+                    .appendTo("#td_ctrl_"+suffix+"_"+plugin_id+"_"+item.group+"-"+item.id);
+              } else {
+                 alert("Unknown control type: "+item.type);
+              }
+            });
+          }
+        );
+        } 
+
+	    $.getJSON("program.json", 
+	    	function(data) {
+	    		$.each(data.inputs, 
+	    			function(i,input){
+		        		$("<li/>").attr("id", "li_in-"+input.id).appendTo("#ul_tabs");
+						$("<a/>").attr("href", "#controldiv_in-"+input.id)
+							.text(input.name).appendTo("#li_in-"+input.id);
+						$("<div/>").attr("id", "controldiv_in-"+input.id).appendTo("#tabs");
+						$("<table/>").attr("id", "controltable_in-"+input.id).appendTo("#controldiv_in-"+input.id);
+		    		}
+	    		)
+	    		
+	    		$.each(data.outputs, 
+	    			function(i,output){
+		        		$("<li/>").attr("id", "li_out-"+output.id).appendTo("#ul_tabs");
+						$("<a/>").attr("href", "#controldiv_out-"+output.id)
+							.text(output.name).appendTo("#li_out-"+output.id);
+						$("<div/>").attr("id", "controldiv_out-"+output.id).appendTo("#tabs");
+						$("<table/>").attr("id", "controltable_out-"+output.id).appendTo("#controldiv_out-"+output.id);
+		    		}
+	    		)
+	    	
+	    		$.each(data.inputs, 
+	    			function(i,input){
+	    				addControl(input.id, "in");
+		    		}
+	    		)
+	    		
+	    		$.each(data.outputs, 
+	    			function(i,output){
+	    				addControl(output.id, "out");
+		    		}
+	    		)
+	    		
+	    		$( "#tabs" ).tabs();
+	    	}
+	    );
+
+       $(function() {
+			
+		});
+        /*$.getJSON("input.json",
+          function(data) {
+          	$.each(data.formats, function(i,item){
+          	  if (item.current == "true") {
+          	  $("<select/>")
+                  .attr("id", "select-resolution")
+                  .attr("style", "width: 100%;")
+                  .change(function(){setResolution($(this).val());})
+                  .appendTo("#resolutions");
+           	    $.each(item.resolutions, function(val,res){
+           	    	if (item.currentResolution == val) {
+                      $("#select-resolution").append($('<option></option>').attr("selected", "selected").val(val).html(res));
+                    } else {
+                      $("#select-resolution").append($('<option></option>').val(val).html(res));
+                    }
+           	    });
+          	  }
+          	});
+          });*/
+    </script>
+    
 
 
-        <a target="_blank" onClick="window.open(this.href, '_blank','width=400,height=400'); return false;" href="control.htm">Control</a>
-      </div>
 
-      <h3>Version info:</h3>
-      <p>v0.1 (Okt 22, 2007)</p>
-
-      <h3>Runtime info:</h3>
-      <p><span id="info">-</span><br/>
-      Avg<sub id="fN">-</sub> : <span  id="ravgms">-</span> ms (<span  id="ravgfps">-</span> fps)
-      </p>
-      </div>
-
+    
     <div id="content">
+	<p class="xform-p"></p>
+	<p id="streamwrap" class="xform-p">
+		<img id="streamimage" class="xform" src="/?action=stream" />
+	</p>
+	<a href="stream_simple.html">Simple stream</a>
+	
+      <p id="xform">
+	STREAM
+		<button id="rotate"><div class="btnface"></div></button>
+		<button id="mirror"><div class="btnface"></div></button>
+		<button id="flip"><div class="btnface"></div></button>
+	</p>
 
-        <p>This  shows the stream by using java script. Click <a href="javascript_simple.html">here</a>.</p>
 
-        <div id="webcam" style="width:512px;height:394px"><noscript><img src="/?action=snapshot" width="512px" height="384px" /></noscript></div>
-
-      <p>&copy; The <a href="http://mjpg-streamer.sf.net">MJPG-streamer team</a> | Design by <a href="http://andreasviklund.com">Andreas Viklund</a></p>
+    <div id="tabs">
+      <ul id="ul_tabs"></ul>
     </div>
+
+      
   </body>
 </html>
-
-
+ 
+ 
