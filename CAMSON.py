@@ -182,6 +182,7 @@ def ls_videos():
         vname=[x for x in res.split() if x.find("ID_SERIAL=")>=0][0]
         print("   ",vendor, model, vname)
         camids.append( vname )
+        
     if os.path.exists( os.path.expanduser("~/.camson") ):
         print("i... .camson exists")
         camidsc=open( os.path.expanduser("~/.camson")).readlines()
@@ -193,7 +194,7 @@ def ls_videos():
         if len(vids)>0:
             with open( os.path.expanduser("~/.camson"),"w") as f:
                 for j in camids:
-                    f.write( j )
+                    f.write( j+"\n" )
         camidsc=camids
     return vids,camidsc,camids
 
@@ -216,6 +217,8 @@ def create_final_list(v,c,n):
                 print( "+...  MTCH",  v[count] ,j)
                 vfinal.append(v[count])
             count=count+1
+    print("i... vfinal after CONFIG:",vfinal)
+
     if len(vfinal)==len(v):
         print("o... ALL available video are setup from config")
     else:
@@ -223,6 +226,9 @@ def create_final_list(v,c,n):
         print("x... i must add the unused dev video", vdif)
         for i in vdif:
             vfinal.append(i)
+            with open( os.path.expanduser("~/.camson"),"a") as f:
+                for x in range( len(n) ):
+                    if i==v[x] :f.write(n[x]+"\n")
     print("i... vfinal",vfinal)
     return vfinal
 
@@ -260,10 +266,16 @@ def run_all_cams( ):
         CMD='/usr/bin/screen -dmS '+screenname+' bash -c  "'+CMD+'"'
         CMM='/usr/bin/screen -dmS '+motionname+' bash -c  "'+CMM+'"'
         #print( CMD )
-        s.check_call( CMD, shell=True )
-        print("i...      run cam ... finished port:",port)
-        s.check_call( CMM, shell=True )
-        print("i...      run MOT ... finished port:",port)
+        try:
+            s.check_call( CMD, shell=True )
+            print("i...      run cam ... finished port:",port)
+        except:
+            print("X...      xxx cam ... finished port:",port)
+        try:
+            s.check_call( CMM, shell=True )
+            print("i...      run MOT ... finished port:",port)
+        except:
+            print("X...      xxx MOT ... finished port:",port)
         port=port+1
     print("i...      run_all_cams   FINISHED")
     return SCREENS,MOTIONS
@@ -288,13 +300,19 @@ def kill_screens( SCREENS, MOTIONS ):
     for i in SCREENS:
         CMD="screen -X -S "+i+" quit"
         print("-... ", CMD )
-        s.check_call( CMD, shell=True )
-        print("i... killed port ",port)
+        try:
+            s.check_call( CMD, shell=True )
+            print("i... killed port ",i)
+        except:
+            print("X... xxx killed port ",i)
     for i in MOTIONS:
         CMD="screen -X -S "+i+" quit"
         print("-... ", CMD )
-        s.check_call( CMD, shell=True )
-        print("i... killed port ",port)
+        try:
+            s.check_call( CMD, shell=True )
+            print("i... killed port ",i)
+        except:
+            print("x... xxx killed port ",i)
 
 
 
@@ -347,16 +365,20 @@ SCREENS=[]  # to be filled now
 MOTIONS=[]
 while True:
     nscreens=count_screens()
-    n=len(nscreens)
+    nlen=len(nscreens)
     now=datetime.datetime.now()
-    echostr="i... {} / {} screens seen : {} /dev/videos seen".format(now.strftime("%H:%M:%S"), n, len(vfinal) ) 
+    echostr="i... {} / {} screens seen : {} /dev/videos seen".format(now.strftime("%H:%M:%S"), nlen, len(vfinal) ) 
     print(echostr, end="\r" )
-    if n!=len(vfinal):
+    if nlen!=len(vfinal):
+     
         print(echostr )
+        # two extra lines to reread config
+        v,c,n=ls_videos()
+        vfinal=create_final_list( v,c,n )
 
         print("R...                   KILLing all screens now" )
         kill_screens( SCREENS, MOTIONS )
-        print("R... videos {} != screens {} running all cameras".format( len(vfinal),n) )
+        print("R... videos {} != screens {} running all cameras".format( len(vfinal),nlen ) )
         SCREENS,MOTIONS=run_all_cams()
     time.sleep(5)
 
