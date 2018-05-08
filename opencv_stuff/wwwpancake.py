@@ -85,7 +85,6 @@ formatter = LogFormatter(fmt=log_format,datefmt='%Y-%m-%d %H:%M:%S')
 logfile=os.path.splitext(os.path.basename(sys.argv[0]) )[0]+'.log'
 logger = setup_logger( name="main",logfile=logfile, level=loglevel,formatter=formatter )#to 1-50
 
-logger.info('Starting webcam2.py')
 
 #########################################
 #
@@ -101,12 +100,12 @@ def monitor_size():
     return wihe
 
 
-def load_source():
+def load_source( configfile ):
     '''
     Read the stream source from ~/.webcam.source
     '''
     #home = expanduser("~")
-    home = os.path.expanduser( args.config )
+    home = os.path.expanduser(configfile )
     with open( home ) as f:
 #    with open( home+'/.webcam.source') as f:
         SRC=f.readlines()
@@ -344,7 +343,9 @@ def worker( num ): # REASSIGN CV IN CASE OF TCP PROBLEMS
     else:
         logger.info("  Reconnected from worker SRC={} ".format(SRC[num]) )
         vclist[num]=vc
-
+        rvalb,frameb=vclist[num].read()
+        #hashnow=sum(frameb).tostring() # not needed.. change is needed
+        #vcframes_hash[num]=hashnow
 
 
 
@@ -434,6 +435,8 @@ def put_date_on_frame( frame ):
 ##################################################
 #
 ##############################
+logger.info('Starting webcam2.py')
+
 monitor=monitor_size()
 logger.info('  Monitor '+str(monitor) )
 #print( monitor )
@@ -441,7 +444,12 @@ vclist=[]
 
 
 ####################### LOAD CONFIG ############
-SRC=load_source()
+
+logger.info('config file =   '+args.config )
+SRC=load_source(args.config)
+
+logger.info('args streams = '+" ".join(args.streams) )
+
 CAMS=get_list_of_sources(args.streams)  # THIS CONTAINS THE
 #print("i... CAMS",CAMS)
 logger.info("CAMS  {}".format(CAMS) )
@@ -450,16 +458,20 @@ for i in CAMS:
 # vc list : VideoCapture Streams 
 vclist={}   # vc object
 #vcframes={} # frame .... dict doesnt know ordering
-####  vcframes ... correspondig pictures
-vcframes=collections.OrderedDict()  # yes, works 
 
+
+####  vcframes ... correspondig pictures. ordered dict is best
+vcframes=collections.OrderedDict()  # yes, works 
+# -- -- pic should be checked if stalled- store hash
+vcframes_hash=collections.OrderedDict() 
 
 
 ##############################
 # initialize VideoCapture, get 1st picture
-#     better do with worker
+#         better do with worker
 ##############################
 for i in CAMS:
+    vcframes_hash[i]="init"
     vc=cv2.VideoCapture( SRC[i]  )
     if not vc.isOpened(): # try to get the first frame
         vc=None
@@ -471,6 +483,7 @@ for i in CAMS:
         rvalb,frameb=vclist[i].read()
         if rvalb:
             vcframes[i]=frameb
+            vcframes_hash[i]="init"
         else:
             vcframes[i]=img_black+ i*10+60
             vclist[i]=None
@@ -531,6 +544,7 @@ if len(timelapse_list)>1:
     if timelapse_interval<timelapse_wait*2:
         logger.error("timelapse interval not good with reconnect time - QUIT ")
         quit()
+logger.info("Timelapse - wait interval {:f} s ".format(timelapse_wait) )
 
 
     
@@ -550,6 +564,7 @@ refw,refh=512,512  # initial cross size
 first_frame=None # motion
 fps=0
 
+
 while True:
     ######### #####  # framcounter :
     if time.time()-framelastat>10.0:
@@ -566,6 +581,19 @@ while True:
                 logger.debug("read() CAM={}  return={}".format(i, rvalb) )
             if rvalb:
                 vcframes[i]=frameb
+                #vcframes_hash[i]=sum(sum(sum(frameb)))
+                #logger.info( vcframes_hash[i])
+                #vcframes_hash[i]=sum(sum(frameb))
+                if vcframes_hash[i]!="init":
+                    hashnow=sum(frameb).tostring()
+                    if vcframes_hash[i]==hashnow:
+                        logger.info(" NO DIFF in HASHES/ STALL detect "+str(hashnow)[0:10]+" "+str(vcframes_hash[i])[0:10] )
+                        vclist[i]=None
+                else:
+                    logger.info("Init hash")
+                    hashnow=sum(frameb).tostring()
+                    vcframes_hash[i]=hashnow
+                    logger.info( str(vcframes_hash[i][0:10]) )
             ###========= THIS I REMOVED. JPG ARE OK NOW>..    !!!!
             ###   ====== evidently  - pic stall can appear...
             #else:
@@ -579,7 +607,7 @@ while True:
                 timetag=datetime.datetime.now()
                 #### re-assign
                 #reco=reco+1 # TEST REASSIGN - looses 3 seconds every x seconds
-                logger.debug("RECONNECT {}".format(i) )
+                logger.info("RECONNECT (every {} s.)   CAM {}".format(RECONNECT_TIMEOUT,i) )
                 #if reco>3:
                 #    SRC[1]="http://pi3:8088/?action=stream"
                 t=threading.Thread(target=worker, args=(i,) )
