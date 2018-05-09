@@ -6,14 +6,15 @@ import subprocess as s
 import time
 import datetime
 
+import shutil
 PORT_START=8080
 
 
 
-
-
-
-
+# TBD:
+SIZE_TRESHOLD=300
+SAVE_JPG_MOTION=True
+SEND_ZMQ_TO="127.0.0.1:5678"
 
 
 
@@ -58,7 +59,7 @@ roundrobin_frames 1
 roundrobin_skip 1
 switchfilter off
 
-threshold 1500
+threshold 2500
 threshold_tune off
 noise_level 32
 noise_tune on
@@ -396,9 +397,26 @@ while True:
     if (loops % 12)==0:
         port=PORT_START
         for p in range( nlen ):
+            #  CHECK SIZE AND NUMBER OF DAYS INSIDE
             dirs=os.path.expanduser("~/.motion/motioncam"+str(port) )
             size=int(get_size( dirs  )/1024/1024)
             print( "    ",dirs," : ",port,   size, " MB " )
+            jpgs=glob.glob( dirs+"/*" )
+            jpgs=[ os.path.basename(x[:len(dirs)+9]) for x in jpgs]
+            days=list( set(jpgs))
+            if len(days)>1:
+                print("A...   ACTION, size = ",SIZE_TRESHOLD,"   days=",len(days)," ",days )
+                # OLD DAY --- MOVE
+                if len(days)>1:
+                    DEST=dirs+"_"+sorted(days)[0] 
+                    print("X... making ", DEST  )
+                    try:
+                        os.mkdir( DEST )
+                    except:
+                        print("X... problem creating ",DEST)
+                    jpgsold=glob.glob( dirs+"/"+ sorted(days)[0]+"*"  )
+                    for fi in jpgsold:
+                        shutil.move( fi,DEST)
             port=port+1
 
 
