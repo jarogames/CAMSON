@@ -6,6 +6,8 @@ import subprocess as s
 import time
 import datetime
 
+import json
+
 import shutil
 PORT_START=8080
 
@@ -17,7 +19,11 @@ SAVE_JPG_MOTION=True
 SEND_ZMQ_TO="127.0.0.1:5678"
 
 
-
+#######################################
+#       XXX==port 8080
+#      DDDD==
+#
+#######################################
 
 MOTION_CONFIG="""
 daemon off
@@ -77,8 +83,8 @@ event_gap 60
 emulate_motion off
 
 
-# best is 1 only on=all, off NO
-output_pictures on
+# best is 1 only on=all, off=NO
+output_pictures XPICTURESX
 output_debug_pictures off
 quality 75
 picture_type jpeg
@@ -132,11 +138,36 @@ webcontrol_localhost on
 webcontrol_html_output on
 
 quiet off
-on_motion_detected nczmq.py -t 192.168.0.117:5678,192.168.0.20:5678 -m motion_detected_on_XXX
+on_motion_detected nczmq.py -t XTARGETSX -m motion_detected_on_XXX
 """
 
 
+CONFIGFILE=os.path.expanduser("~/.camson.json")
+condict={}
 
+#========================
+def CREATE_CONFIG( ):
+    global condict
+    condict={          }
+    return condict
+    
+def SAVE_CONFIG( ):
+    global condict
+    CONF=os.path.expanduser(CONFIGFILE)
+    with open( CONF , 'w') as f:
+        json.dump( condict , f, sort_keys=True, indent=4, separators=(',', ': '))
+
+def READ_CONFIG(  ):
+    global condict
+    CONF=os.path.expanduser( CONFIGFILE )
+    if os.path.isfile( CONF ):
+        with open( CONF , 'r') as f:
+            condict = json.load(f)
+    return condict
+#=======================
+
+
+    
 def get_size(start_path = '.'):
     total_size = 0
     for dirpath, dirnames, filenames in os.walk(start_path):
@@ -170,9 +201,11 @@ def read_res_passw():
 def ls_videos():
     """
     gets video  info  CAMIDS
-    reads or saves config  .camson CAMIDSC
+    reads or saves config  .camson   CAMIDSC
+    returns ALL
 
     """
+    global condict
     vids=glob.glob("/dev/video*")
     camids=[]
     camidsc=[]
@@ -194,6 +227,7 @@ def ls_videos():
         camids.append( vname )
         
     if os.path.exists( os.path.expanduser("~/.camson") ):
+        # READ FROM CAMSON
         print("i... .camson exists")
         camidsc=open( os.path.expanduser("~/.camson")).readlines()
         camidsc=[ x.strip() for x in camidsc if len(x)>1] #rm empty,\n
@@ -207,6 +241,7 @@ def ls_videos():
                     f.write( j+"\n" )
         camidsc=camids
     return vids,camidsc,camids
+
 
 
 
@@ -248,11 +283,11 @@ def create_final_list(v,c,n):
 
 
 
-def run_all_cams( ):
+def run_all_cams( kvideo_vname ):
     port=PORT_START
     SCREENS=[]
     MOTIONS=[]
-    for i in vfinal:
+    for i in vfinal:   # /dev/videoi
         #
         #  screen -dmS myservice_mjpg8080 ... displays in "infinite"
         #
@@ -266,6 +301,11 @@ def run_all_cams( ):
         motionconf="/tmp/"+motionname+".conf"
         MOTION_CONFIG_TMP=MOTION_CONFIG.replace("XXX", str(port) )
         MOTION_CONFIG_TMP=MOTION_CONFIG_TMP.replace("USER",  os.getenv('USER')  )
+        MOTION_CONFIG_TMP=MOTION_CONFIG_TMP.replace("XTARGETSX",  condict[kvideo_vname[i]]['targets']  ) # [/dev/video0]
+        if condict[kvideo_vname[i]]['savejpg']:
+            MOTION_CONFIG_TMP=MOTION_CONFIG.replace("XPICTURESX", "on" )
+        else:
+            MOTION_CONFIG_TMP=MOTION_CONFIG.replace("XPICTURESX", "off" )
         #MOTION_CONFIG_TMP=MOTION_CONFIG_TMP.replace("DDDD",  datetime.datetime.now().strftime("%Y%m%d")  )
         with open( motionconf, "w") as f:
             f.write( MOTION_CONFIG_TMP )
@@ -340,14 +380,14 @@ def kill_screens( SCREENS, MOTIONS ):
 passw,resol=read_res_passw()
 # find mjpg-streamer in paths:
 lookat=["./","~/bin","~/","~/02_GIT/ALL/"]
-#=================plain search, no =============
+#=================plain search, no ============= nonono
 for i in lookat:
     print("{:15s}:".format(i) , end=" ")
     li=glob.glob( os.path.expanduser(i)+"/*" )
     li=[x for x in li if x.find("mjpg-streamer")>=0 ]
     print(li)
 print("----------------------------------------------")
-#================== build search  =================
+#================== build search  ================= GOOD
 for i in lookat:
     print("{:15s}:".format(i) , end=" ")
     li=glob.glob( os.path.expanduser(i)+"/*" )
@@ -364,9 +404,41 @@ os.chdir( li[0] )
 ############
 # - one option: put all from 8080
 # - second option: reserve port to config (no)
-v,c,n=ls_videos()
-vfinal=create_final_list( v,c,n )
 
+
+#====== read config ==========
+if not os.path.isfile( CONFIGFILE ):
+    condict=CREATE_CONFIG()
+    SAVE_CONFIG(  )
+condict=READ_CONFIG()
+
+
+v,c,n=ls_videos()
+vfinal=create_final_list( v,c,n ) # this is real list READOUT
+kvideo_vname={}
+for i in range(len(vfinal)):        #== put keyvideo---valueNAME
+    kvideo_vname[  vfinal[i] ]=n[i] #== defined=>used in run_all_cams 
+#================ CONFIGURATION IN JSON=====
+for i in c:
+    if not i in condict:
+        print("+... add to .camson.json:",i)
+        condict[i]={ "savejpg":False ,
+                     "threshold":2500,
+                     "targets":"192.168.0.117:5678,192.168.0.20:5678"}
+    else:  # if config json exists BUT misses the item
+        if not "savejpg" in condict[i]:
+            condict[i]["savejpg"]=False 
+        if not "threshold" in condict[i]:
+            condict[i]["threshold"]=2500 
+        if not "targets" in condict[i]:
+            condict[i]["targets"]="192.168.0.117:5678,192.168.0.20:5678"
+            
+#print(c)   # THESE ARE CAMERA NAMES ==========
+print("vfinal=",vfinal)
+print("n     =",n)
+print("      =",kvideo_vname)
+SAVE_CONFIG()
+#quit()
 
 
 WEBSITE="../mjpg-streamer/mjpg-streamer-experimental/www/"
@@ -383,18 +455,23 @@ while True:
     echostr="i... {} / {} screens seen : {} /dev/videos seen".format(now.strftime("%H:%M:%S"), nlen, len(vfinal) ) 
     print(echostr, end="\r" )
     if nlen!=len(vfinal):
-     
+        #================ ACTION HERE============
         print(echostr )
-        # two extra lines to reread config
+        
+        # two extra lines to reread config ==== READOUT
         v,c,n=ls_videos()
         vfinal=create_final_list( v,c,n )
+        for i in range(len(vfinal)):        #== put keyvideo---valueNAME
+            kvideo_vname[  vfinal[i] ]=n[i] #== defined=>used in run_all_cams 
 
+            
         print("R...                   KILLing all screens now" )
         kill_screens( SCREENS, MOTIONS )
         print("R... videos {} != screens {} running all cameras".format( len(vfinal),nlen ) )
-        SCREENS,MOTIONS=run_all_cams()
+        SCREENS,MOTIONS=run_all_cams( kvideo_vname )
     time.sleep(5)
-    if (loops % 12)==0:
+    #==================== CHECK STUFF per minute==============
+    if (loops % 12)==0: 
         port=PORT_START
         for p in range( nlen ):
             #  CHECK SIZE AND NUMBER OF DAYS INSIDE
