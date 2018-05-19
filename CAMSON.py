@@ -9,6 +9,9 @@ import datetime
 import json
 
 import shutil
+
+import signal
+
 PORT_START=8080
 
 
@@ -41,7 +44,7 @@ frequency 0
 rotate 0
 width 640
 height 480
-framerate 3
+framerate 2
 minimum_frame_time 0
 
 
@@ -75,9 +78,9 @@ despeckle_filter EedDl
 
 smart_mask_speed 0
 lightswitch 0
-minimum_motion_frames 1
-pre_capture 2
-post_capture 2
+minimum_motion_frames 2
+pre_capture 1
+post_capture 1
 event_gap 60
 #max_mpeg_time 600
 emulate_motion off
@@ -106,9 +109,9 @@ use_extpipe off
 snapshot_interval 0
 
 
-text_right XXX__%T-%q
+text_right %T-%q
 
-text_left %Y-%m-%d
+text_left "XXX  %Y-%m-%d"
 
 text_changes off
 text_event %Y%m%d%H%M%S
@@ -145,6 +148,7 @@ on_motion_detected nczmq.py -t XTARGETSX -m motion_detected_on_XXX
 CONFIGFILE=os.path.expanduser("~/.camson.json")
 condict={}
 
+
 #========================
 def CREATE_CONFIG( ):
     global condict
@@ -165,6 +169,31 @@ def READ_CONFIG(  ):
             condict = json.load(f)
     return condict
 #=======================
+
+
+
+
+
+########### NICE END of program ## with save
+#
+#  CTRL C
+#
+####################################
+def signal_handler(signal, frame):
+    print("exit  - Ctrl-C pressed  - killing all motion and mjpg_streamer "  ) 
+    CMD="killall mjpg_streamer motion"
+    try:
+        s.check_call( CMD.split() )
+    except:
+        print("i... NO streamer motion KILLED ")
+    sys.exit(0)
+
+    
+signal.signal(signal.SIGINT,  signal_handler) #  CTRL-C : Legal quit
+
+
+
+
 
 
     
@@ -300,13 +329,16 @@ def run_all_cams( kvideo_vname ):
 
         motionname='myservice_mjMO'+str(port)
         motionconf="/tmp/"+motionname+".conf"
+        print("i... CONFIG == ",i,motionconf)
+        print("i... CONFIG == ",i,motionconf)
+        print("i... CONFIG == ",i,motionconf)
         MOTION_CONFIG_TMP=MOTION_CONFIG.replace("XXX", str(port) )
         MOTION_CONFIG_TMP=MOTION_CONFIG_TMP.replace("USER",  os.getenv('USER')  )
         MOTION_CONFIG_TMP=MOTION_CONFIG_TMP.replace("XTARGETSX",  condict[kvideo_vname[i]]['targets']  ) # [/dev/video0]
         if condict[kvideo_vname[i]]['savejpg']:
-            MOTION_CONFIG_TMP=MOTION_CONFIG.replace("XPICTURESX", "on" )
+            MOTION_CONFIG_TMP=MOTION_CONFIG_TMP.replace("XPICTURESX", "on" )
         else:
-            MOTION_CONFIG_TMP=MOTION_CONFIG.replace("XPICTURESX", "off" )
+            MOTION_CONFIG_TMP=MOTION_CONFIG_TMP.replace("XPICTURESX", "off" )
         #MOTION_CONFIG_TMP=MOTION_CONFIG_TMP.replace("DDDD",  datetime.datetime.now().strftime("%Y%m%d")  )
         with open( motionconf, "w") as f:
             f.write( MOTION_CONFIG_TMP )
@@ -413,8 +445,12 @@ print( "entering ",li[0] )
 os.chdir( li[0] )
 
 
-
-############
+CMD="killall mjpg_streamer motion"
+try:
+    s.check_call( CMD.split()  )
+except:
+    print("i... NO streamer motion KILLED ")
+    ############
 # - one option: put all from 8080
 # - second option: reserve port to config (no)
 
@@ -468,6 +504,7 @@ while True:
     now=datetime.datetime.now()
     echostr="i... {} / {} screens seen : {} /dev/videos seen".format(now.strftime("%H:%M:%S"), nlen, len(vfinal) ) 
     print(echostr, end="\r" )
+    #print(echostr, end="\n" )
     if nlen!=len(vfinal):
         #================ ACTION HERE============
         print(echostr )
