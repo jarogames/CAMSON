@@ -293,6 +293,7 @@ def run_all_cams( kvideo_vname ):
         #
         CMD=' LD_LIBRARY_PATH=./plugins/output_http:./plugins/input_uvc  ./mjpg_streamer -i "input_uvc.so -n -timestamp %H%M -d {}   -r {}" -o "output_http.so -w {} -p {}" '.format( i , RESOL, WEBSITE, port )
         CMD=CMD.replace('"','\\"')
+        print("D... ",CMD)
         #CMD="sleep 5"
 
         screenname='myservice_mjpg'+str(port)
@@ -374,12 +375,22 @@ def kill_screens( SCREENS, MOTIONS ):
 ################## MAIN ########################
 #
 ######################
+import sys
+import shutil
 
-
-
+print("i... started")
+#print(sys.argv[0])
+mypath=os.path.dirname( os.path.realpath(__file__)  )+"/www_mjpg_streamer/"
+print("i... WWW=",mypath)
+try:
+    print("+... to /tmp/www_mjpg_streamer/")
+    shutil.copytree( mypath , '/tmp/www_mjpg_streamer')
+except:
+    print("?... maybe exists already")
+#quit()
 passw,resol=read_res_passw()
 # find mjpg-streamer in paths:
-lookat=["./","~/bin","~/","~/02_GIT/ALL/"]
+lookat=["./","~/bin","~/","~/02_GIT/ALL/","~/","~/02_GIT/ALLMYGITS/ALL/","~/02_GIT/"]
 #=================plain search, no ============= nonono
 for i in lookat:
     print("{:15s}:".format(i) , end=" ")
@@ -395,7 +406,9 @@ for i in lookat:
     print(li)
     if len(li)>0: break
 #=================== enter directory ./mjpg
-if len(li)==0: quit()
+if len(li)==0:
+    print("X...  no mjpg-streamer.build found, quit")
+    quit()
 print( "entering ",li[0] )
 os.chdir( li[0] )
 
@@ -443,6 +456,7 @@ SAVE_CONFIG()
 
 WEBSITE="../mjpg-streamer/mjpg-streamer-experimental/www/"
 WEBSITE="/home/mraz/02_GIT/ALL/CAMSON/www/"
+WEBSITE="/tmp/www_mjpg_streamer/"
 RESOL="640x480"
 SCREENS=[]  # to be filled now
 MOTIONS=[]
