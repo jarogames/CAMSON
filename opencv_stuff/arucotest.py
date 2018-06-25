@@ -199,7 +199,7 @@ if ('0' in aruco ) and ('1' in aruco):
     CONDICT=aruco
     SAVE_CONFIG(  CONDICT )
 else:
-    aruce=CONDICT
+    aruco=CONDICT
 #####################3
 # cropping based on old or new
 #####################
