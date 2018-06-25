@@ -90,9 +90,10 @@ usage='use "%(prog)s --help" for more information',
 
 parser.add_argument('-i','--image', default='aruco_012345_DICT_4X4_50.jpg' , help=' input image with ARUCO')
 #parser.add_argument('-f','--figure', default=['output.jpg'] , help=' cropped output',action="store", nargs="?")
-parser.add_argument('-f','--figure', default='output.jpg' , help=' cropped output',action="store")
+parser.add_argument('-r','--rectangles', action="store_true" ,  help='draw rectangles')
+parser.add_argument('-f','--figure', default='output.jpg' , help=' save (cropped) output',action="store")
 parser.add_argument('-s','--show',  default=0 , help='miilseconds to display, 0=forever')
-parser.add_argument('-c','--crop',    action="store_true" , help='')
+parser.add_argument('-c','--crop',    action="store_true" , help='make crop based on aruco or an old config')
 
 args=parser.parse_args() 
 
@@ -165,11 +166,12 @@ if not res[1] is None:
         
         #print( "CENTER tuple", center ,   res[0][objec][0][0])
         #center=(100,100)
-        cv2.circle(gray, tuple(aruco[symb]['tl']) , 3, (255,0,0), thickness=3, lineType=8, shift=0) 
-        #cv2.circle(gray, center2 , 15, (255,255,0), thickness=3, lineType=8, shift=0) 
-        #cv2.circle(gray, center, radius, color, thickness=1, lineType=8, shift=0) → None
-        cv2.putText(gray, str( symb ) , tuple(center), font, 0.8  ,(0,0,255), 2, cv2.LINE_AA)
-        cv2.rectangle( gray, tuple(aruco[symb]['tl'])  ,tuple(aruco[symb]['br'])  , (0,255,0), 2)
+        if args.rectangles:
+            cv2.circle(gray, tuple(aruco[symb]['tl']) , 3, (255,0,0), thickness=3, lineType=8, shift=0) 
+            #cv2.circle(gray, center2 , 15, (255,255,0), thickness=3, lineType=8, shift=0) 
+            #cv2.circle(gray, center, radius, color, thickness=1, lineType=8, shift=0) → None
+            cv2.putText(gray, str( symb ) , tuple(center), font, 0.8  ,(0,0,255), 2, cv2.LINE_AA)
+            cv2.rectangle( gray, tuple(aruco[symb]['tl'])  ,tuple(aruco[symb]['br'])  , (0,255,0), 2)
 
 
 # if not res[0] is None:
@@ -189,7 +191,8 @@ if not res[2] is None:
         centera=list( o[0][0] )
         centerb=list( o[0][2] )
         #print(">>>> ",o, "CEN:",center[0],center[2] )
-        cv2.rectangle( gray, tuple(centera), tuple(centerb), (255,0,255), 2)
+        if args.rectangles:
+            cv2.rectangle( gray, tuple(centera), tuple(centerb), (255,0,255), 2)
 
 
 #########################
