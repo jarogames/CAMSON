@@ -4,7 +4,80 @@
 import cv2.aruco
 import argparse
 
+import json
+import os
 
+import numpy as np # to convert to int
+
+####################################
+# JSON CONFIG FROM CAMSON.py
+######################################
+# problem jsonify tuples
+# class MultiDimensionalArrayEncoder(json.JSONEncoder):
+#     def encode(self, obj):
+#         def hint_tuples(item):
+#             if isinstance(item, tuple):
+#                 return {'__tuple__': True, 'items': item}
+#             if isinstance(item, list):
+#                 return [hint_tuples(e) for e in item]
+#             if isinstance(item, dict):
+#                 return {key: hint_tuples(value) for key, value in item.items()}
+#             else:
+#                 return item
+
+#         return super(MultiDimensionalArrayEncoder, self).encode(hint_tuples(obj))
+
+# def hinted_tuple_hook(obj):
+#     if '__tuple__' in obj:
+#         return tuple(obj['items'])
+#     else:
+#         return obj
+
+
+# enc = MultiDimensionalArrayEncoder()
+# jsonstring =  enc.encode([1, 2, (3, 4), [5, 6, (7, 8)]])
+# print( jsonstring )
+
+#========== this works on floats....i think
+#import json
+#from json import encoder
+#encoder.FLOAT_REPR = lambda o: format(o, '.2f')
+#print( json.dumps(23.67))
+#print( json.dumps([23.67, 23.97, 23.87]))
+
+
+CONFIGFILE=os.path.expanduser("~/.ssocr.json")
+CONDICT={} # config dictionary
+def CREATE_CONFIG( ):
+    condict={          }
+    return condict
+
+def SAVE_CONFIG( condict ):
+    CONF=os.path.expanduser(CONFIGFILE)
+    with open( CONF , 'w') as f:
+        #json.dump( keys_to_string(condict) , f, sort_keys=True, indent=4, separators=(',', ': '))
+        print("====SAVE SHAPE 1========:")
+        print( "S",condict )
+        print("====SAVE SHAPE 2========:")
+        json.dump( condict , f, sort_keys=True, indent=4, separators=(',', ': '))
+
+def READ_CONFIG(  ):
+    CONF=os.path.expanduser( CONFIGFILE )
+    if os.path.isfile( CONF ):
+        with open( CONF , 'r') as f:
+            #print json.loads(jsonstring, object_hook=hinted_tuple_hook)
+            condict = json.load(f)
+    return condict
+#=======================
+#====== read config ==========
+if not os.path.isfile( CONFIGFILE ):
+    CONDICT=CREATE_CONFIG()
+    SAVE_CONFIG( CONDICT  )
+CONDICT=READ_CONFIG()
+print( "D... CONDICT===",CONDICT )
+#SAVE_CONFIG( CONDICT  )
+
+#quit()
 ####################################
 # PARSER ARG
 ######################################
@@ -16,7 +89,7 @@ usage='use "%(prog)s --help" for more information',
 )
 
 parser.add_argument('-i','--image', default='aruco_012345_DICT_4X4_50.jpg' , help=' input image with ARUCO')
-parser.add_argument('-s','--show',    action="store_true" , help='')
+parser.add_argument('-s','--show',  default=0 , help='miilseconds to display, 0=forever')
 parser.add_argument('-c','--crop',    action="store_true" , help='')
 
 args=parser.parse_args() 
@@ -62,34 +135,39 @@ aruco={}
 if not res[1] is None:
     for objec in range( len(res[1]) ):
         center=tuple( res[0][objec][0][0]  )
-        symb=res[1][objec][0]
+        symb= str(   res[1][objec][0]  ) # key = str
+        #  i try integer
+        #for i in range(4):
+        #xx=[  res[0][objec][0][i][0].tolist, res[0][objec][0][i][1].tolist ] 
+            #res[0][objec][0][i]=[ np.asscalar(j) for j in res[0][objec][0][i] ]
+            #res[0][objec][0][i]=[ j.tolist() for j in res[0][objec][0][i] ]
+            #$print(  "LIST OF OINT",  type(xx), type(res[0][objec][0][i])   )
         aruco[symb]={}
-        aruco[symb]['tl']= tuple( res[0][objec][0][0]  )
-        aruco[symb]['tr']= tuple( res[0][objec][0][1]  )
-        aruco[symb]['br']= tuple( res[0][objec][0][2]  )
-        aruco[symb]['bl']= tuple( res[0][objec][0][3]  )
+        i=0
+        xx=[  int(res[0][objec][0][i][0].tolist()), int(res[0][objec][0][i][1].tolist()) ] 
+        aruco[symb]['tl']= xx
+        i=1
+        xx=[  int(res[0][objec][0][i][0].tolist()), int(res[0][objec][0][i][1].tolist()) ] 
+        aruco[symb]['tr']= xx
+        i=2
+        xx=[  int(res[0][objec][0][i][0].tolist()), int(res[0][objec][0][i][1].tolist()) ] 
+        aruco[symb]['br']= xx
+        i=3
+        xx=[  int(res[0][objec][0][i][0].tolist()), int(res[0][objec][0][i][1].tolist()) ] 
+        aruco[symb]['bl']= xx
+        print( "xxxxxxxxxxxxxxxx" , aruco )
         
-        
-        print( symb , aruco )
+        print( 'symb=',symb , aruco['1'] )
+        print(tuple(aruco[symb]['tl']) )
         #center2=tuple( res[2][objec][0][0]  )
         
         #print( "CENTER tuple", center ,   res[0][objec][0][0])
         #center=(100,100)
-        cv2.circle(gray, aruco[symb]['tl'] , 3, (255,0,0), thickness=3, lineType=8, shift=0) 
+        cv2.circle(gray, tuple(aruco[symb]['tl']) , 3, (255,0,0), thickness=3, lineType=8, shift=0) 
         #cv2.circle(gray, center2 , 15, (255,255,0), thickness=3, lineType=8, shift=0) 
         #cv2.circle(gray, center, radius, color, thickness=1, lineType=8, shift=0) → None
-        cv2.putText(gray, str( symb ) , center, font, 0.8  ,(0,0,255), 2, cv2.LINE_AA)
-        cv2.rectangle( gray, aruco[symb]['tl']  ,aruco[symb]['br']  , (0,255,0), 2)
-        if symb==0:
-            print( "xy0",center )
-            (x0,y0)=center
-        if symb==1:
-            print( "xy1",center )
-            (x1,y1)=center
-        if symb==5:
-            print( "xy5",center )
-            (x5,y5)=center
-
+        cv2.putText(gray, str( symb ) , tuple(center), font, 0.8  ,(0,0,255), 2, cv2.LINE_AA)
+        cv2.rectangle( gray, tuple(aruco[symb]['tl'])  ,tuple(aruco[symb]['br'])  , (0,255,0), 2)
 
 
 # if not res[0] is None:
@@ -106,13 +184,29 @@ if not res[2] is None:
     #print("False detections:",len(res[2]))
     for o in res[2]:
         center=o[0]
-        centera=tuple( o[0][0] )
-        centerb=tuple( o[0][2] )
+        centera=list( o[0][0] )
+        centerb=list( o[0][2] )
         #print(">>>> ",o, "CEN:",center[0],center[2] )
-        cv2.rectangle( gray, centera, centerb, (255,0,255), 2)
+        cv2.rectangle( gray, tuple(centera), tuple(centerb), (255,0,255), 2)
 
+
+#########################
+#   both points
+########################
+if ('0' in aruco ) and ('1' in aruco):
+    print("SAVING crop positions",aruco)
+    CONDICT={}
+    CONDICT=aruco
+    SAVE_CONFIG(  CONDICT )
+else:
+    aruce=CONDICT
+#####################3
+# cropping based on old or new
+#####################
 if args.crop:        
     #crop_img = gray[y0:y5, x0:x5]
+    [x0,y0]=aruco['0']['br']
+    [x1,y1]=aruco['1']['tl']
     gray = gray[y0:y1, x0:x1]
 
 if args.show:
@@ -120,5 +214,8 @@ if args.show:
     #cv2.imshow('image', crop_img)
     import time
     #time.sleep(3)
-    cv2.waitKey(0)
+    cv2.waitKey( int(args.show) )
 print(aruco)
+
+
+
