@@ -89,6 +89,8 @@ usage='use "%(prog)s --help" for more information',
 )
 
 parser.add_argument('-i','--image', default='aruco_012345_DICT_4X4_50.jpg' , help=' input image with ARUCO')
+#parser.add_argument('-f','--figure', default=['output.jpg'] , help=' cropped output',action="store", nargs="?")
+parser.add_argument('-f','--figure', default='output.jpg' , help=' cropped output',action="store")
 parser.add_argument('-s','--show',  default=0 , help='miilseconds to display, 0=forever')
 parser.add_argument('-c','--crop',    action="store_true" , help='')
 
@@ -118,7 +120,7 @@ print( "I... False detections=",len( res[2] ) )
 if res[0]==[]:
     print("X... empty list, nothing detected")
 else:
-    print('Detected ARUCO: res1=', res[1] )
+    print('i...  ARUCO detected: list of tags == res1 ==', res[1] )
     
 # #res = cv2.aruco.detectMarkers(gray,dictionary=adict,cameraMatrix=cam_mat,distCoeff=dist_mat)
 # objec=0
@@ -155,9 +157,9 @@ if not res[1] is None:
         i=3
         xx=[  int(res[0][objec][0][i][0].tolist()), int(res[0][objec][0][i][1].tolist()) ] 
         aruco[symb]['bl']= xx
-        print( "xxxxxxxxxxxxxxxx" , aruco )
+        #print( "xxxxxxxxxxxxxxxx" , aruco )
         
-        print( 'symb=',symb , aruco['1'] )
+        #print( 'symb=',symb , aruco['1'] )
         print(tuple(aruco[symb]['tl']) )
         #center2=tuple( res[2][objec][0][0]  )
         
@@ -193,28 +195,39 @@ if not res[2] is None:
 #########################
 #   both points
 ########################
+
 if ('0' in aruco ) and ('1' in aruco):
-    print("SAVING crop positions",aruco)
+    print("S... SAVING crop positions",aruco)
     CONDICT={}
     CONDICT=aruco
     SAVE_CONFIG(  CONDICT )
 else:
+    print("X...  USING OLD CONFIG")
     aruco=CONDICT
 #####################3
 # cropping based on old or new
 #####################
-if args.crop:        
+if args.crop and ('0' in aruco ) and ('1' in aruco):
+    print("CROP... ",aruco)
     #crop_img = gray[y0:y5, x0:x5]
     [x0,y0]=aruco['0']['br']
     [x1,y1]=aruco['1']['tl']
     gray = gray[y0:y1, x0:x1]
+else:
+    print("X...  CANNOT crop for some reason (no previous config)")
 
+    
 if args.show:
     cv2.imshow('image',gray)
     #cv2.imshow('image', crop_img)
-    import time
+    #import time
     #time.sleep(3)
     cv2.waitKey( int(args.show) )
+    
+if args.figure!="":
+    print( "W... writing ",args.figure)
+    cv2.imwrite(args.figure ,gray)
+
 print(aruco)
 
 
