@@ -68,7 +68,7 @@ roundrobin_frames 1
 roundrobin_skip 1
 switchfilter off
 
-threshold 2500
+threshold XTHRESHOLDX
 threshold_tune off
 noise_level 32
 noise_tune on
@@ -141,7 +141,7 @@ webcontrol_localhost on
 webcontrol_html_output on
 
 quiet off
-on_motion_detected nczmq.py -t XTARGETSX -m motion_detected_on_XXX
+on_motion_detected nczmq.py -t XTARGETSX -m motion_detected_on_XXX -s SSSERVICE -p PPPARAM
 """
 
 
@@ -332,14 +332,22 @@ def run_all_cams( kvideo_vname ):
         print("i... CONFIG == ",i,motionconf)
         print("i... CONFIG == ",i,motionconf)
         print("i... CONFIG == ",i,motionconf)
+        
         MOTION_CONFIG_TMP=MOTION_CONFIG.replace("XXX", str(port) )
         MOTION_CONFIG_TMP=MOTION_CONFIG_TMP.replace("USER",  os.getenv('USER')  )
         MOTION_CONFIG_TMP=MOTION_CONFIG_TMP.replace("XTARGETSX",  condict[kvideo_vname[i]]['targets']  ) # [/dev/video0]
+        MOTION_CONFIG_TMP=MOTION_CONFIG_TMP.replace("SSSERVICE", condict[kvideo_vname[i]]['zmq_service']  )
+        MOTION_CONFIG_TMP=MOTION_CONFIG_TMP.replace("PPPARAM", condict[kvideo_vname[i]]['zmq_parameter']  )
+        MOTION_CONFIG_TMP=MOTION_CONFIG_TMP.replace("XTRESHOLDX", str(condict[kvideo_vname[i]]['threshold'] ) )
+
         if condict[kvideo_vname[i]]['savejpg']:
             MOTION_CONFIG_TMP=MOTION_CONFIG_TMP.replace("XPICTURESX", "on" )
         else:
             MOTION_CONFIG_TMP=MOTION_CONFIG_TMP.replace("XPICTURESX", "off" )
         #MOTION_CONFIG_TMP=MOTION_CONFIG_TMP.replace("DDDD",  datetime.datetime.now().strftime("%Y%m%d")  )
+
+
+        
         with open( motionconf, "w") as f:
             f.write( MOTION_CONFIG_TMP )
         CMM="motion -c "+motionconf
