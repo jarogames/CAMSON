@@ -338,7 +338,8 @@ def run_all_cams( kvideo_vname ):
         MOTION_CONFIG_TMP=MOTION_CONFIG_TMP.replace("XTARGETSX",  condict[kvideo_vname[i]]['targets']  ) # [/dev/video0]
         MOTION_CONFIG_TMP=MOTION_CONFIG_TMP.replace("SSSERVICE", condict[kvideo_vname[i]]['zmq_service']  )
         MOTION_CONFIG_TMP=MOTION_CONFIG_TMP.replace("PPPARAM", condict[kvideo_vname[i]]['zmq_parameter']  )
-        MOTION_CONFIG_TMP=MOTION_CONFIG_TMP.replace("XTRESHOLDX", str(condict[kvideo_vname[i]]['threshold'] ) )
+        print("\n\nDDDD......", str(condict[kvideo_vname[i]]['threshold'] ))
+        MOTION_CONFIG_TMP=MOTION_CONFIG_TMP.replace("XTHRESHOLDX", str(condict[kvideo_vname[i]]['threshold'] ) )
 
         if condict[kvideo_vname[i]]['savejpg']:
             MOTION_CONFIG_TMP=MOTION_CONFIG_TMP.replace("XPICTURESX", "on" )
@@ -526,6 +527,8 @@ while True:
             
         print("R...                   KILLing all screens now" )
         kill_screens( SCREENS, MOTIONS )
+        print(".....  waiting 5 sec. to complete kill of motion")
+        time.sleep(5)
         print("R... videos {} != screens {} running all cameras".format( len(vfinal),nlen ) )
         SCREENS,MOTIONS=run_all_cams( kvideo_vname )
     time.sleep(5)
